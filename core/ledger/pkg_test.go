@@ -24,7 +24,7 @@ import (
 	"github.com/hyperledger/fabric/core/ledger/testutil"
 	"github.com/hyperledger/fabric/core/util"
 	"github.com/hyperledger/fabric/protos"
-	"github.com/tecbot/gorocksdb"
+	"github.com/hyperledger/fabric/anh/tecbot/gorocksdb"
 	"golang.org/x/net/context"
 )
 

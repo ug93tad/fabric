@@ -18,7 +18,7 @@ package state
 
 import (
 	"github.com/hyperledger/fabric/core/ledger/statemgmt"
-	"github.com/tecbot/gorocksdb"
+	"github.com/hyperledger/fabric/anh/tecbot/gorocksdb"
 )
 
 // StateSnapshot encapsulates StateSnapshotIterator given by actual state implementation and the db snapshot

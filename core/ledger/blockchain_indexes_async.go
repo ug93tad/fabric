@@ -22,7 +22,7 @@ import (
 
 	"github.com/hyperledger/fabric/core/db"
 	"github.com/hyperledger/fabric/protos"
-	"github.com/tecbot/gorocksdb"
+	"github.com/hyperledger/fabric/anh/tecbot/gorocksdb"
 )
 
 var lastIndexedBlockKey = []byte{byte(0)}

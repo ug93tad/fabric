@@ -19,7 +19,7 @@ package raw
 import (
 	"github.com/hyperledger/fabric/core/db"
 	"github.com/hyperledger/fabric/core/ledger/statemgmt"
-	"github.com/tecbot/gorocksdb"
+	"github.com/hyperledger/fabric/anh/tecbot/gorocksdb"
 )
 
 // StateImpl implements raw state management. This implementation does not support computation of crypto-hash of the state.

@@ -24,7 +24,7 @@ import (
 	"github.com/hyperledger/fabric/core/db"
 	"github.com/hyperledger/fabric/core/util"
 	"github.com/hyperledger/fabric/protos"
-	"github.com/tecbot/gorocksdb"
+	"github.com/hyperledger/fabric/anh/tecbot/gorocksdb"
 	"golang.org/x/net/context"
 )
 
@@ -46,10 +46,14 @@ type lastProcessedBlock struct {
 var indexBlockDataSynchronously = true
 
 func newBlockchain() (*blockchain, error) {
-	size, err := fetchBlockchainSizeFromDB()
-	if err != nil {
-		return nil, err
-	}
+//	size, err := fetchBlockchainSizeFromDB()
+//	if err != nil {
+//		return nil, err
+//	}
+  var size uint64
+  var err error
+  size = 0
+  err = nil
 	blockchain := &blockchain{0, nil, nil, nil}
 	blockchain.size = size
 	if size > 0 {

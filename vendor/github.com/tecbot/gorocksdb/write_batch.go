@@ -1,12 +1,15 @@
-package gorocksdb
+package gorocksdb 
 
 // #include "rocksdb/c.h"
 import "C"
-import "io"
+import ("io"
+        "ustoredb"
+       )
 
 // WriteBatch is a batching of Puts, Merges and Deletes.
 type WriteBatch struct {
 	c *C.rocksdb_writebatch_t
+  uw *ustoredb.WriteBatch
 }
 
 // NewWriteBatch create a WriteBatch object.
@@ -16,7 +19,11 @@ func NewWriteBatch() *WriteBatch {
 
 // NewNativeWriteBatch create a WriteBatch object.
 func NewNativeWriteBatch(c *C.rocksdb_writebatch_t) *WriteBatch {
-	return &WriteBatch{c}
+	return &WriteBatch{c, nil}
+}
+
+func NewUStoreWriteBatch(uw *ustoredb.WriteBatch) *WriteBatch {
+  return &WriteBatch{nil, uw}
 }
 
 // WriteBatchFrom creates a write batch from a serialized WriteBatch.
@@ -26,6 +33,9 @@ func WriteBatchFrom(data []byte) *WriteBatch {
 
 // Put queues a key-value pair.
 func (wb *WriteBatch) Put(key, value []byte) {
+  if wb.uw != nil {
+    panic("Not implemented in UStore")
+  }
 	cKey := byteToChar(key)
 	cValue := byteToChar(value)
 	C.rocksdb_writebatch_put(wb.c, cKey, C.size_t(len(key)), cValue, C.size_t(len(value)))
@@ -33,13 +43,20 @@ func (wb *WriteBatch) Put(key, value []byte) {
 
 // PutCF queues a key-value pair in a column family.
 func (wb *WriteBatch) PutCF(cf *ColumnFamilyHandle, key, value []byte) {
-	cKey := byteToChar(key)
-	cValue := byteToChar(value)
-	C.rocksdb_writebatch_put_cf(wb.c, cf.c, cKey, C.size_t(len(key)), cValue, C.size_t(len(value)))
+  if wb.uw != nil {
+    wb.uw.PutCF(cf.uc, string(key[:]), string(value[:]))
+  } else {
+	  cKey := byteToChar(key)
+	  cValue := byteToChar(value)
+	  C.rocksdb_writebatch_put_cf(wb.c, cf.c, cKey, C.size_t(len(key)), cValue, C.size_t(len(value)))
+  }
 }
 
 // Merge queues a merge of "value" with the existing value of "key".
 func (wb *WriteBatch) Merge(key, value []byte) {
+  if wb.uw != nil {
+    panic("Not implemented in UStore")
+  }
 	cKey := byteToChar(key)
 	cValue := byteToChar(value)
 	C.rocksdb_writebatch_merge(wb.c, cKey, C.size_t(len(key)), cValue, C.size_t(len(value)))
@@ -48,6 +65,9 @@ func (wb *WriteBatch) Merge(key, value []byte) {
 // MergeCF queues a merge of "value" with the existing value of "key" in a
 // column family.
 func (wb *WriteBatch) MergeCF(cf *ColumnFamilyHandle, key, value []byte) {
+  if wb.uw != nil {
+    panic("Not implemented in UStore")
+  }
 	cKey := byteToChar(key)
 	cValue := byteToChar(value)
 	C.rocksdb_writebatch_merge_cf(wb.c, cf.c, cKey, C.size_t(len(key)), cValue, C.size_t(len(value)))
@@ -55,18 +75,25 @@ func (wb *WriteBatch) MergeCF(cf *ColumnFamilyHandle, key, value []byte) {
 
 // Delete queues a deletion of the data at key.
 func (wb *WriteBatch) Delete(key []byte) {
-	cKey := byteToChar(key)
+  cKey := byteToChar(key)
 	C.rocksdb_writebatch_delete(wb.c, cKey, C.size_t(len(key)))
 }
 
 // DeleteCF queues a deletion of the data at key in a column family.
 func (wb *WriteBatch) DeleteCF(cf *ColumnFamilyHandle, key []byte) {
-	cKey := byteToChar(key)
-	C.rocksdb_writebatch_delete_cf(wb.c, cf.c, cKey, C.size_t(len(key)))
+  if wb.uw != nil {
+    wb.uw.DeleteCF(cf.uc, string(key[:]))
+  } else {
+	  cKey := byteToChar(key)
+	  C.rocksdb_writebatch_delete_cf(wb.c, cf.c, cKey, C.size_t(len(key)))
+  }
 }
 
 // Data returns the serialized version of this batch.
 func (wb *WriteBatch) Data() []byte {
+  if wb.uw != nil {
+    panic("Not implemented in UStore")
+  }
 	var cSize C.size_t
 	cValue := C.rocksdb_writebatch_data(wb.c, &cSize)
 	return charToByte(cValue, cSize)
@@ -74,11 +101,17 @@ func (wb *WriteBatch) Data() []byte {
 
 // Count returns the number of updates in the batch.
 func (wb *WriteBatch) Count() int {
+  if wb.uw != nil {
+    panic("Not implemented in UStore")
+  }
 	return int(C.rocksdb_writebatch_count(wb.c))
 }
 
 // NewIterator returns a iterator to iterate over the records in the batch.
 func (wb *WriteBatch) NewIterator() *WriteBatchIterator {
+  if wb.uw != nil {
+    panic("Not implemented in UStore")
+  }
 	data := wb.Data()
 	if len(data) < 8+4 {
 		return &WriteBatchIterator{}
@@ -88,11 +121,19 @@ func (wb *WriteBatch) NewIterator() *WriteBatchIterator {
 
 // Clear removes all the enqueued Put and Deletes.
 func (wb *WriteBatch) Clear() {
-	C.rocksdb_writebatch_clear(wb.c)
+  if wb.uw != nil {
+    wb.uw.Clear()
+  } else {
+	  C.rocksdb_writebatch_clear(wb.c)
+  }
 }
 
 // Destroy deallocates the WriteBatch object.
 func (wb *WriteBatch) Destroy() {
+  if wb.uw != nil {
+    ustoredb.DeleteWriteBatch(wb.uw)
+    wb.uw = nil
+  }
 	C.rocksdb_writebatch_destroy(wb.c)
 	wb.c = nil
 }

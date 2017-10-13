@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/spf13/viper"
-	"github.com/tecbot/gorocksdb"
+	"github.com/hyperledger/fabric/anh/tecbot/gorocksdb"
 )
 
 // TestDBWrapper wraps the db. Can be used by other modules for testing

@@ -83,6 +83,10 @@ func (s *ServerOpenchain) GetBlockchainInfo(ctx context.Context, e *empty.Empty)
 	return blockchainInfo, err
 }
 
+func (s *ServerOpenchain) GetDBStats() (uint64, uint64, uint64, uint64, uint64) {
+  return s.ledger.GetDBStats()
+}
+
 // GetBlockByNumber returns the data contained within a specific block in the
 // blockchain. The genesis block is block zero.
 func (s *ServerOpenchain) GetBlockByNumber(ctx context.Context, num *pb.BlockNumber) (*pb.Block, error) {

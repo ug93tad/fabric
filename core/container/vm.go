@@ -107,7 +107,6 @@ func GetChaincodePackageBytes(spec *pb.ChaincodeSpec) ([]byte, error) {
 	}
 
 	chaincodePkgBytes := inputbuf.Bytes()
-
 	return chaincodePkgBytes, nil
 }
 

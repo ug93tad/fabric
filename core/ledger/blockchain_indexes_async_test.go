@@ -24,7 +24,7 @@ import (
 
 	"github.com/hyperledger/fabric/core/ledger/testutil"
 	"github.com/hyperledger/fabric/protos"
-	"github.com/tecbot/gorocksdb"
+	"github.com/hyperledger/fabric/anh/tecbot/gorocksdb"
 )
 
 func TestIndexesAsync_GetBlockByBlockNumber(t *testing.T) {

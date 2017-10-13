@@ -19,7 +19,7 @@ package trie
 import (
 	"github.com/hyperledger/fabric/core/db"
 	"github.com/hyperledger/fabric/core/ledger/statemgmt"
-	"github.com/tecbot/gorocksdb"
+	"github.com/hyperledger/fabric/anh/tecbot/gorocksdb"
 )
 
 // StateSnapshotIterator implements the interface 'statemgmt.StateSnapshotIterator'
@@ -30,6 +30,7 @@ type StateSnapshotIterator struct {
 }
 
 func newStateSnapshotIterator(snapshot *gorocksdb.Snapshot) (*StateSnapshotIterator, error) {
+  panic("newStateSnapshotIterator not implemented")
 	dbItr := db.GetDBHandle().GetStateCFSnapshotIterator(snapshot)
 	dbItr.SeekToFirst()
 	// skip the root key, because, the value test in Next method is misleading for root key as the value field

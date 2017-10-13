@@ -19,7 +19,7 @@ package buckettree
 import (
 	"github.com/hyperledger/fabric/core/db"
 	"github.com/hyperledger/fabric/core/ledger/statemgmt"
-	"github.com/tecbot/gorocksdb"
+	"github.com/hyperledger/fabric/anh/tecbot/gorocksdb"
 )
 
 // StateSnapshotIterator implements the interface 'statemgmt.StateSnapshotIterator'

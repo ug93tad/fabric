@@ -25,7 +25,7 @@ import (
 
 	"github.com/op/go-logging"
 	"github.com/spf13/viper"
-	"github.com/tecbot/gorocksdb"
+	"github.com/hyperledger/fabric/anh/tecbot/gorocksdb"
 )
 
 var dbLogger = logging.MustGetLogger("db")
@@ -132,6 +132,7 @@ func (openchainDB *OpenchainDB) GetStateDeltaCFIterator() *gorocksdb.Iterator {
 // GetSnapshot returns a point-in-time view of the DB. You MUST call snapshot.Release()
 // when you are done with the snapshot.
 func (openchainDB *OpenchainDB) GetSnapshot() *gorocksdb.Snapshot {
+  panic("not implemented")
 	return openchainDB.DB.NewSnapshot()
 }
 
@@ -188,6 +189,11 @@ func (openchainDB *OpenchainDB) open() {
 	opts.SetCreateIfMissing(missing)
 	opts.SetCreateIfMissingColumnFamilies(true)
 
+  dbtype := viper.GetString("peer.db.dbtype")
+  if dbtype == "ustore" {    
+    opts.SetDbType(dbtype)
+  }
+  dbLogger.Infof("dbType is: %v", dbtype)
 	cfNames := []string{"default"}
 	cfNames = append(cfNames, columnfamilies...)
 	var cfOpts []*gorocksdb.Options

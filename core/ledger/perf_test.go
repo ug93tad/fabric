@@ -28,7 +28,7 @@ import (
 	"github.com/hyperledger/fabric/core/util"
 	"github.com/hyperledger/fabric/protos"
 	"github.com/op/go-logging"
-	"github.com/tecbot/gorocksdb"
+	"github.com/hyperledger/fabric/github.com/hyperledger/fabric/anh/tecbot/gorocksdb"
 )
 
 func BenchmarkDB(b *testing.B) {

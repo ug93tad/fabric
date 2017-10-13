@@ -18,6 +18,7 @@ package helper
 
 import (
 	"github.com/hyperledger/fabric/consensus"
+  coreutil "github.com/hyperledger/fabric/core/util"
 	"github.com/hyperledger/fabric/core/peer"
 
 	"fmt"
@@ -36,7 +37,6 @@ type EngineImpl struct {
 	helper       *Helper
 	peerEndpoint *pb.PeerEndpoint
 	consensusFan *util.MessageFan
-	txCounter    uint64
 }
 
 // GetHandlerFactory returns new NewConsensusHandler
@@ -87,10 +87,8 @@ func (eng *EngineImpl) ProcessTransactionMsg(msg *pb.Message, tx *pb.Transaction
 		if err != nil {
 			response = &pb.Response{Status: pb.Response_FAILURE, Msg: []byte(err.Error())}
 		}
-		eng.txCounter++
-		if eng.txCounter&0x11f == 0 {
-			util.GetStat().StartTx(tx.Txid)
-		}
+
+    coreutil.GetStatUtil().Stats["txqueue"].Start(tx.Txid)
 	}
 	return response
 }
@@ -123,7 +121,8 @@ func GetEngine(coord peer.MessageHandlerCoordinator) (peer.Engine, error) {
 		engine.helper.setConsenter(engine.consenter)
 		engine.peerEndpoint, err = coord.GetPeerEndpoint()
 		engine.consensusFan = util.NewMessageFan()
-		engine.txCounter = 0
+    // starting Stat
+    coreutil.GetStatUtil().NewStat("txqueue",1023)
 		go func() {
 			logger.Debug("Starting up message thread for consenter")
 

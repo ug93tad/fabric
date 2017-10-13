@@ -23,7 +23,7 @@ import (
 
 	"github.com/hyperledger/fabric/core/db"
 	"github.com/spf13/viper"
-	"github.com/tecbot/gorocksdb"
+	"github.com/hyperledger/fabric/anh/tecbot/gorocksdb"
 )
 
 func TestMain(m *testing.M) {

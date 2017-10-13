@@ -1,18 +1,25 @@
-package gorocksdb
+package gorocksdb 
 
 // #include <stdlib.h>
 // #include "rocksdb/c.h"
 import "C"
-import "unsafe"
+import ("unsafe"
+        "ustoredb"
+       )
 
 // ColumnFamilyHandle represents a handle to a ColumnFamily.
 type ColumnFamilyHandle struct {
 	c *C.rocksdb_column_family_handle_t
+  uc *ustoredb.ColumnFamilyHandle
+}
+
+func NewUStoreColumnFamilyHandle(uc *ustoredb.ColumnFamilyHandle) *ColumnFamilyHandle {
+	return &ColumnFamilyHandle{c: nil, uc: uc}
 }
 
 // NewNativeColumnFamilyHandle creates a ColumnFamilyHandle object.
 func NewNativeColumnFamilyHandle(c *C.rocksdb_column_family_handle_t) *ColumnFamilyHandle {
-	return &ColumnFamilyHandle{c}
+	return &ColumnFamilyHandle{c: c, uc: nil}
 }
 
 // UnsafeGetCFHandler returns the underlying c column family handle.
@@ -22,5 +29,10 @@ func (h *ColumnFamilyHandle) UnsafeGetCFHandler() unsafe.Pointer {
 
 // Destroy calls the destructor of the underlying column family handle.
 func (h *ColumnFamilyHandle) Destroy() {
-	C.rocksdb_column_family_handle_destroy(h.c)
+  if h.c != nil {
+	  C.rocksdb_column_family_handle_destroy(h.c)
+  }
+  if h.uc != nil {
+    ustoredb.DeleteColumnFamilyHandle(h.uc)
+  }
 }

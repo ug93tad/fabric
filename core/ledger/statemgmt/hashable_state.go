@@ -17,7 +17,7 @@ limitations under the License.
 package statemgmt
 
 import (
-	"github.com/tecbot/gorocksdb"
+	"github.com/hyperledger/fabric/anh/tecbot/gorocksdb"
 )
 
 // HashableState - Interface that is be implemented by state management

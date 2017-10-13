@@ -651,6 +651,9 @@ func (s *ServerOpenchainREST) GetBlockchainInfo(rw web.ResponseWriter, req *web.
 		rw.WriteHeader(http.StatusOK)
 		encoder.Encode(info)
 	}
+  nr, nw, rt, wt, dbs := s.server.GetDBStats()
+  restLogger.Warningf("REST poll stats: %v %v %v %v %v", nr,nw,rt,wt, dbs)
+
 }
 
 // GetBlockByNumber returns the data contained within a specific block in the
@@ -671,8 +674,7 @@ func (s *ServerOpenchainREST) GetBlockByNumber(rw web.ResponseWriter, req *web.R
 
 	// Retrieve Block from blockchain
 	block, err := s.server.GetBlockByNumber(context.Background(), &pb.BlockNumber{Number: blockNumber})
-
-	if (err == ErrNotFound) || (err == nil && block == nil) {
+  if (err == ErrNotFound) || (err == nil && block == nil) {
 		rw.WriteHeader(http.StatusNotFound)
 		encoder.Encode(restResult{Error: ErrNotFound.Error()})
 		return

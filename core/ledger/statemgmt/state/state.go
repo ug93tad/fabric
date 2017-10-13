@@ -26,7 +26,7 @@ import (
 	"github.com/hyperledger/fabric/core/ledger/statemgmt/raw"
 	"github.com/hyperledger/fabric/core/ledger/statemgmt/trie"
 	"github.com/op/go-logging"
-	"github.com/tecbot/gorocksdb"
+	"github.com/hyperledger/fabric/anh/tecbot/gorocksdb"
 )
 
 var logger = logging.MustGetLogger("state")

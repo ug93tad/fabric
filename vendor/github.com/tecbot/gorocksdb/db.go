@@ -1,4 +1,4 @@
-package gorocksdb
+package gorocksdb 
 
 // #include <stdlib.h>
 // #include "rocksdb/c.h"
@@ -6,6 +6,8 @@ import "C"
 import (
 	"errors"
 	"unsafe"
+	"ustoredb"
+  "fmt"
 )
 
 // Range is a range of keys in the database. GetApproximateSizes calls with it
@@ -20,10 +22,28 @@ type DB struct {
 	c    *C.rocksdb_t
 	name string
 	opts *Options
+	udb  *ustoredb.UStoreDB
+}
+
+func notSupported(opts *Options) {
+	if opts.dbtype == UStoreDB {
+		panic("Not implemented on UStore")
+	}
 }
 
 // OpenDb opens a database with the specified options.
 func OpenDb(opts *Options, name string) (*DB, error) {
+  fmt.Printf("Open DB with dbtype: %v\n", opts.dbtype)
+	if opts.dbtype == UStoreDB {
+		db, _ := ustoredb.OpenDB()
+		return &DB{
+			name: "",
+			c:    nil,
+			opts: opts,
+			udb:  db,
+		}, nil
+	}
+
 	var (
 		cErr  *C.char
 		cName = C.CString(name)
@@ -43,6 +63,7 @@ func OpenDb(opts *Options, name string) (*DB, error) {
 
 // OpenDbForReadOnly opens a database with the specified options for readonly usage.
 func OpenDbForReadOnly(opts *Options, name string, errorIfLogFileExist bool) (*DB, error) {
+	notSupported(opts)
 	var (
 		cErr  *C.char
 		cName = C.CString(name)
@@ -70,6 +91,17 @@ func OpenDbColumnFamilies(
 	numColumnFamilies := len(cfNames)
 	if numColumnFamilies != len(cfOpts) {
 		return nil, nil, errors.New("must provide the same number of column family names and options")
+	}
+
+	if opts.dbtype == UStoreDB {
+    fmt.Printf("I'm in UStore")
+		db, _ := OpenDb(opts, name)
+		cfHandles := make([]*ColumnFamilyHandle, numColumnFamilies)
+		for i, c := range cfNames {
+      cfh, _ := db.udb.CreateColumnFamily(c)
+			cfHandles[i] = NewUStoreColumnFamilyHandle(cfh)
+		}
+		return db, cfHandles, nil
 	}
 
 	cName := C.CString(name)
@@ -128,6 +160,7 @@ func OpenDbForReadOnlyColumnFamilies(
 	cfOpts []*Options,
 	errorIfLogFileExist bool,
 ) (*DB, []*ColumnFamilyHandle, error) {
+	notSupported(opts)
 	numColumnFamilies := len(cfNames)
 	if numColumnFamilies != len(cfOpts) {
 		return nil, nil, errors.New("must provide the same number of column family names and options")
@@ -183,6 +216,7 @@ func OpenDbForReadOnlyColumnFamilies(
 
 // ListColumnFamilies lists the names of the column families in the DB.
 func ListColumnFamilies(opts *Options, name string) ([]string, error) {
+	notSupported(opts)
 	var (
 		cErr  *C.char
 		cLen  C.size_t
@@ -206,6 +240,7 @@ func ListColumnFamilies(opts *Options, name string) ([]string, error) {
 
 // UnsafeGetDB returns the underlying c rocksdb instance.
 func (db *DB) UnsafeGetDB() unsafe.Pointer {
+  notSupported(db.opts)
 	return unsafe.Pointer(db.c)
 }
 
@@ -216,6 +251,7 @@ func (db *DB) Name() string {
 
 // Get returns the data associated with the key from the database.
 func (db *DB) Get(opts *ReadOptions, key []byte) (*Slice, error) {
+  notSupported(db.opts)
 	var (
 		cErr    *C.char
 		cValLen C.size_t
@@ -231,6 +267,7 @@ func (db *DB) Get(opts *ReadOptions, key []byte) (*Slice, error) {
 
 // GetBytes is like Get but returns a copy of the data.
 func (db *DB) GetBytes(opts *ReadOptions, key []byte) ([]byte, error) {
+  notSupported(db.opts)
 	var (
 		cErr    *C.char
 		cValLen C.size_t
@@ -250,6 +287,10 @@ func (db *DB) GetBytes(opts *ReadOptions, key []byte) ([]byte, error) {
 
 // GetCF returns the data associated with the key from the database and column family.
 func (db *DB) GetCF(opts *ReadOptions, cf *ColumnFamilyHandle, key []byte) (*Slice, error) {
+  if db.opts.dbtype == UStoreDB {
+    val, _ := db.udb.GetCF(cf.uc, string(key[:]))
+    return NewUStoreSlice(val), nil
+  }
 	var (
 		cErr    *C.char
 		cValLen C.size_t
@@ -265,6 +306,7 @@ func (db *DB) GetCF(opts *ReadOptions, cf *ColumnFamilyHandle, key []byte) (*Sli
 
 // Put writes data associated with a key to the database.
 func (db *DB) Put(opts *WriteOptions, key, value []byte) error {
+  notSupported(db.opts)
 	var (
 		cErr   *C.char
 		cKey   = byteToChar(key)
@@ -280,6 +322,9 @@ func (db *DB) Put(opts *WriteOptions, key, value []byte) error {
 
 // PutCF writes data associated with a key to the database and column family.
 func (db *DB) PutCF(opts *WriteOptions, cf *ColumnFamilyHandle, key, value []byte) error {
+  if db.opts.dbtype == UStoreDB {
+    return db.udb.PutCF(cf.uc, string(key[:]), string(value[:]))
+  }
 	var (
 		cErr   *C.char
 		cKey   = byteToChar(key)
@@ -295,6 +340,7 @@ func (db *DB) PutCF(opts *WriteOptions, cf *ColumnFamilyHandle, key, value []byt
 
 // Delete removes the data associated with the key from the database.
 func (db *DB) Delete(opts *WriteOptions, key []byte) error {
+  notSupported(db.opts)
 	var (
 		cErr *C.char
 		cKey = byteToChar(key)
@@ -309,6 +355,9 @@ func (db *DB) Delete(opts *WriteOptions, key []byte) error {
 
 // DeleteCF removes the data associated with the key from the database and column family.
 func (db *DB) DeleteCF(opts *WriteOptions, cf *ColumnFamilyHandle, key []byte) error {
+  if db.opts.dbtype == UStoreDB {
+    return db.udb.DeleteCF(cf.uc, string(key[:]))
+  }
 	var (
 		cErr *C.char
 		cKey = byteToChar(key)
@@ -323,6 +372,7 @@ func (db *DB) DeleteCF(opts *WriteOptions, cf *ColumnFamilyHandle, key []byte) e
 
 // Merge merges the data associated with the key with the actual data in the database.
 func (db *DB) Merge(opts *WriteOptions, key []byte, value []byte) error {
+  notSupported(db.opts)
 	var (
 		cErr   *C.char
 		cKey   = byteToChar(key)
@@ -339,6 +389,7 @@ func (db *DB) Merge(opts *WriteOptions, key []byte, value []byte) error {
 // MergeCF merges the data associated with the key with the actual data in the
 // database and column family.
 func (db *DB) MergeCF(opts *WriteOptions, cf *ColumnFamilyHandle, key []byte, value []byte) error {
+  notSupported(db.opts)
 	var (
 		cErr   *C.char
 		cKey   = byteToChar(key)
@@ -354,6 +405,9 @@ func (db *DB) MergeCF(opts *WriteOptions, cf *ColumnFamilyHandle, key []byte, va
 
 // Write writes a WriteBatch to the database
 func (db *DB) Write(opts *WriteOptions, batch *WriteBatch) error {
+  if db.opts.dbtype == UStoreDB {
+    return db.udb.Write(batch.uw)
+  }
 	var cErr *C.char
 	C.rocksdb_write(db.c, opts.c, batch.c, &cErr)
 	if cErr != nil {
@@ -366,6 +420,7 @@ func (db *DB) Write(opts *WriteOptions, batch *WriteBatch) error {
 // NewIterator returns an Iterator over the the database that uses the
 // ReadOptions given.
 func (db *DB) NewIterator(opts *ReadOptions) *Iterator {
+  notSupported(db.opts)
 	cIter := C.rocksdb_create_iterator(db.c, opts.c)
 	return NewNativeIterator(unsafe.Pointer(cIter))
 }
@@ -373,18 +428,24 @@ func (db *DB) NewIterator(opts *ReadOptions) *Iterator {
 // NewIteratorCF returns an Iterator over the the database and column family
 // that uses the ReadOptions given.
 func (db *DB) NewIteratorCF(opts *ReadOptions, cf *ColumnFamilyHandle) *Iterator {
+  if db.opts.dbtype == UStoreDB {
+    it, _ := ustoredb.GetIterator(cf.uc)
+    return NewUStoreIterator(it)
+  }
 	cIter := C.rocksdb_create_iterator_cf(db.c, opts.c, cf.c)
 	return NewNativeIterator(unsafe.Pointer(cIter))
 }
 
 // NewSnapshot creates a new snapshot of the database.
 func (db *DB) NewSnapshot() *Snapshot {
+  notSupported(db.opts)
 	cSnap := C.rocksdb_create_snapshot(db.c)
 	return NewNativeSnapshot(cSnap, db.c)
 }
 
 // GetProperty returns the value of a database property.
 func (db *DB) GetProperty(propName string) string {
+  notSupported(db.opts)
 	cprop := C.CString(propName)
 	defer C.free(unsafe.Pointer(cprop))
 	cValue := C.rocksdb_property_value(db.c, cprop)
@@ -394,6 +455,7 @@ func (db *DB) GetProperty(propName string) string {
 
 // GetPropertyCF returns the value of a database property.
 func (db *DB) GetPropertyCF(propName string, cf *ColumnFamilyHandle) string {
+  notSupported(db.opts)
 	cProp := C.CString(propName)
 	defer C.free(unsafe.Pointer(cProp))
 	cValue := C.rocksdb_property_value_cf(db.c, cf.c, cProp)
@@ -403,6 +465,11 @@ func (db *DB) GetPropertyCF(propName string, cf *ColumnFamilyHandle) string {
 
 // CreateColumnFamily create a new column family.
 func (db *DB) CreateColumnFamily(opts *Options, name string) (*ColumnFamilyHandle, error) {
+  if db.opts.dbtype == UStoreDB {
+    cfh, _ := db.udb.CreateColumnFamily(name)
+    return NewUStoreColumnFamilyHandle(cfh), nil
+  }
+
 	var (
 		cErr  *C.char
 		cName = C.CString(name)
@@ -418,6 +485,10 @@ func (db *DB) CreateColumnFamily(opts *Options, name string) (*ColumnFamilyHandl
 
 // DropColumnFamily drops a column family.
 func (db *DB) DropColumnFamily(c *ColumnFamilyHandle) error {
+  if db.opts.dbtype == UStoreDB {
+    db.udb.DropColumnFamily(c.uc)
+    return nil
+  }
 	var cErr *C.char
 	C.rocksdb_drop_column_family(db.c, c.c, &cErr)
 	if cErr != nil {
@@ -433,6 +504,7 @@ func (db *DB) DropColumnFamily(c *ColumnFamilyHandle) error {
 // The keys counted will begin at Range.Start and end on the key before
 // Range.Limit.
 func (db *DB) GetApproximateSizes(ranges []Range) []uint64 {
+  notSupported(db.opts)
 	sizes := make([]uint64, len(ranges))
 	if len(ranges) == 0 {
 		return sizes
@@ -467,6 +539,7 @@ func (db *DB) GetApproximateSizes(ranges []Range) []uint64 {
 // The keys counted will begin at Range.Start and end on the key before
 // Range.Limit.
 func (db *DB) GetApproximateSizesCF(cf *ColumnFamilyHandle, ranges []Range) []uint64 {
+  notSupported(db.opts)
 	sizes := make([]uint64, len(ranges))
 	if len(ranges) == 0 {
 		return sizes
@@ -508,6 +581,7 @@ type LiveFileMetadata struct {
 // GetLiveFilesMetaData returns a list of all table files with their
 // level, start key and end key.
 func (db *DB) GetLiveFilesMetaData() []LiveFileMetadata {
+  notSupported(db.opts)
 	lf := C.rocksdb_livefiles(db.c)
 	defer C.rocksdb_livefiles_destroy(lf)
 
@@ -533,6 +607,7 @@ func (db *DB) GetLiveFilesMetaData() []LiveFileMetadata {
 // CompactRange runs a manual compaction on the Range of keys given. This is
 // not likely to be needed for typical usage.
 func (db *DB) CompactRange(r Range) {
+  notSupported(db.opts)
 	cStart := byteToChar(r.Start)
 	cLimit := byteToChar(r.Limit)
 	C.rocksdb_compact_range(db.c, cStart, C.size_t(len(r.Start)), cLimit, C.size_t(len(r.Limit)))
@@ -541,6 +616,7 @@ func (db *DB) CompactRange(r Range) {
 // CompactRangeCF runs a manual compaction on the Range of keys given on the
 // given column family. This is not likely to be needed for typical usage.
 func (db *DB) CompactRangeCF(cf *ColumnFamilyHandle, r Range) {
+  notSupported(db.opts)
 	cStart := byteToChar(r.Start)
 	cLimit := byteToChar(r.Limit)
 	C.rocksdb_compact_range_cf(db.c, cf.c, cStart, C.size_t(len(r.Start)), cLimit, C.size_t(len(r.Limit)))
@@ -548,6 +624,7 @@ func (db *DB) CompactRangeCF(cf *ColumnFamilyHandle, r Range) {
 
 // Flush triggers a manuel flush for the database.
 func (db *DB) Flush(opts *FlushOptions) error {
+  notSupported(db.opts)
 	var cErr *C.char
 	C.rocksdb_flush(db.c, opts.c, &cErr)
 	if cErr != nil {
@@ -559,6 +636,7 @@ func (db *DB) Flush(opts *FlushOptions) error {
 
 // DisableFileDeletions disables file deletions and should be used when backup the database.
 func (db *DB) DisableFileDeletions() error {
+  notSupported(db.opts)
 	var cErr *C.char
 	C.rocksdb_disable_file_deletions(db.c, &cErr)
 	if cErr != nil {
@@ -570,6 +648,7 @@ func (db *DB) DisableFileDeletions() error {
 
 // EnableFileDeletions enables file deletions for the database.
 func (db *DB) EnableFileDeletions(force bool) error {
+  notSupported(db.opts)
 	var cErr *C.char
 	C.rocksdb_enable_file_deletions(db.c, boolToChar(force), &cErr)
 	if cErr != nil {
@@ -583,6 +662,7 @@ func (db *DB) EnableFileDeletions(force bool) error {
 // reflect that. Supports deletion of sst and log files only. 'name' must be
 // path relative to the db directory. eg. 000001.sst, /archive/000003.log.
 func (db *DB) DeleteFile(name string) {
+  notSupported(db.opts)
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 	C.rocksdb_delete_file(db.c, cName)
@@ -590,12 +670,16 @@ func (db *DB) DeleteFile(name string) {
 
 // Close closes the database.
 func (db *DB) Close() {
+  if db.opts.dbtype == UStoreDB {
+    ustoredb.Close(db.udb)
+  }
 	C.rocksdb_close(db.c)
 }
 
 // DestroyDb removes a database entirely, removing everything from the
 // filesystem.
 func DestroyDb(name string, opts *Options) error {
+  notSupported(opts)
 	var (
 		cErr  *C.char
 		cName = C.CString(name)
@@ -611,6 +695,7 @@ func DestroyDb(name string, opts *Options) error {
 
 // RepairDb repairs a database.
 func RepairDb(name string, opts *Options) error {
+  notSupported(opts)
 	var (
 		cErr  *C.char
 		cName = C.CString(name)

@@ -244,7 +244,7 @@ func (op *obcBatch) sendBatch() events.Event {
 
 	reqBatch := &RequestBatch{Batch: op.batchStore}
 	op.batchStore = nil
-	logger.Infof("Creating batch with %d requests", len(reqBatch.Batch))
+	logger.Infof("Creating batch with %d requests, size: %v", len(reqBatch.Batch), proto.Size(reqBatch))
 
 	return reqBatch
 }

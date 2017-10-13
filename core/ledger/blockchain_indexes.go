@@ -23,7 +23,7 @@ import (
 	"github.com/hyperledger/fabric/core/db"
 	"github.com/hyperledger/fabric/protos"
 	"github.com/op/go-logging"
-	"github.com/tecbot/gorocksdb"
+	"github.com/hyperledger/fabric/anh/tecbot/gorocksdb"
 )
 
 var indexLogger = logging.MustGetLogger("indexes")
