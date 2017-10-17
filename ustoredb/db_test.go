@@ -264,8 +264,8 @@ func TestKVDB_ColumnFamily1(t *testing.T) {
       }
     }
   }
-  val, err := kvdb.GetCF(cfh1, "key4")
-  fmt.Printf("Value for key4: %v\n", val)
+  val, err := kvdb.GetCF(cfh1, "key3")
+  fmt.Printf("Value for key3: %v\n", val)
 }
 
 func TestKVDB_ColumnFamilyBatch(t *testing.T) {

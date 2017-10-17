@@ -113,6 +113,7 @@ func (blockchain *blockchain) getBlockByHash(blockHash []byte) (*protos.Block, e
 }
 
 func (blockchain *blockchain) getTransactionByID(txID string) (*protos.Transaction, error) {
+  panic("getTransactionByID not implemented")
 	blockNumber, txIndex, err := blockchain.indexer.fetchTransactionIndexByID(txID)
 	if err != nil {
 		return nil, err
@@ -145,6 +146,7 @@ func (blockchain *blockchain) getTransactionsByBlockHash(blockHash []byte) ([]*p
 
 // getTransaction get a transaction identified by block number and index within the block
 func (blockchain *blockchain) getTransaction(blockNumber uint64, txIndex uint64) (*protos.Transaction, error) {
+  panic("getTransaction not implemented")
 	block, err := blockchain.getBlock(blockNumber)
 	if err != nil {
 		return nil, err
@@ -154,6 +156,7 @@ func (blockchain *blockchain) getTransaction(blockNumber uint64, txIndex uint64)
 
 // getTransactionByBlockHash get a transaction identified by block hash and index within the block
 func (blockchain *blockchain) getTransactionByBlockHash(blockHash []byte, txIndex uint64) (*protos.Transaction, error) {
+  panic("getTransactionByBlockHash not implemented")
 	block, err := blockchain.getBlockByHash(blockHash)
 	if err != nil {
 		return nil, err
@@ -232,6 +235,7 @@ func (blockchain *blockchain) blockPersistenceStatus(success bool) {
 }
 
 func (blockchain *blockchain) persistRawBlock(block *protos.Block, blockNumber uint64) error {
+  panic("persistRawBlock not implemented")
 	blockBytes, blockBytesErr := block.Bytes()
 	if blockBytesErr != nil {
 		return blockBytesErr
@@ -290,6 +294,7 @@ func fetchBlockchainSizeFromDB() (uint64, error) {
 }
 
 func fetchBlockchainSizeFromSnapshot(snapshot *gorocksdb.Snapshot) (uint64, error) {
+  panic("fetchBlockchainSizeFromSnapshot not implemented")
 	blockNumberBytes, err := db.GetDBHandle().GetFromBlockchainCFSnapshot(snapshot, blockCountKey)
 	if err != nil {
 		return 0, err

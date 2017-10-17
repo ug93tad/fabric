@@ -203,11 +203,13 @@ func serve(args []string) error {
 	serve := make(chan error)
 
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)
 	go func() {
 		sig := <-sigs
 		fmt.Println()
 		fmt.Println(sig)
+    logger.Infof("Stopping peer...")
+    db.Stop()
 		serve <- nil
 	}()
 

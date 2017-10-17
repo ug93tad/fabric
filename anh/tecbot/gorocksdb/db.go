@@ -686,8 +686,9 @@ func (db *DB) DeleteFile(name string) {
 func (db *DB) Close() {
   if db.opts.dbtype == UStoreDB {
     ustoredb.Close(db.udb)
+  } else {
+	  C.rocksdb_close(db.c)
   }
-	C.rocksdb_close(db.c)
 }
 
 // DestroyDb removes a database entirely, removing everything from the

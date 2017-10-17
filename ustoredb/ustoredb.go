@@ -34,9 +34,11 @@ func OpenDB() (*UStoreDB, error) {
 
 func Close(db *UStoreDB) {
   ustore.DeleteKVDB(db.db)
+
+  /*
   for cf := range db.cFamilies {
     delete(db.cFamilies, cf)
-  }
+  }*/
 }
 
 func NewWriteBatch() (*WriteBatch, error) {
