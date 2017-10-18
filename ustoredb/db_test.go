@@ -365,6 +365,57 @@ func TestKVDB_ColumnFamilyIterator(t *testing.T) {
 
 }
 
+func check_result(res ustore.PairStatusString, t *testing.T) string {
+  if !res.GetFirst().Ok() {
+    t.Errorf("Error status from Result")
+  }
+  return res.GetSecond()
+}
+
+func correct(val, expect string, t *testing.T) {
+  if val != expect {
+    t.Errorf("Expected %v, got %v", expect, val)
+  }
+}
+
+func TestKVDB_MapOps(t *testing.T) {
+  stateKey := "stateKey"
+  kvdb := ustore.NewKVDB(uint(42))
+  kvdb.InitMap(stateKey)
+  keys := []string {"key1", "key2", "key3"}
+  vals := []string {"val1", "val2", "val3"}
+  
+  res1 := check_result(kvdb.PutMap(keys[0], vals[0]), t)
+  check_result(kvdb.PutMap(keys[1], vals[1]), t)
+
+  // then put again
+  check_result(kvdb.PutMap(keys[0], vals[2]), t)
+
+  // get latest map
+  correct(check_result(kvdb.GetMap(keys[0]), t), vals[2], t)
+  // get previous version
+  correct(check_result(kvdb.GetMap(keys[0], res1), t), vals[0], t) 
+  fmt.Printf("version: %v, len %v\n", res1, len(res1))
+}
+
+func TestKVDB_BlobOps(t *testing.T) {
+  kvdb := ustore.NewKVDB(uint(42))
+  keys := []string {"key1", "key2", "key3"}
+  vals := []string {"val1", "val2", "val3"}
+  
+  res1 := check_result(kvdb.PutBlob(keys[0], vals[0]), t)
+  check_result(kvdb.PutBlob(keys[1], vals[1]), t)
+
+  // then put again
+  check_result(kvdb.PutBlob(keys[0], vals[2]), t)
+
+  // get latest map
+  correct(check_result(kvdb.GetBlob(keys[0]), t), vals[2], t)
+  // get previous version
+  correct(check_result(kvdb.GetBlob(keys[0], res1), t), vals[0], t) 
+  fmt.Printf("version: %v, len %v\n", res1, len(res1))
+}
+
 func TestKVDB_BatchOps(t *testing.T) {
 	kvdb := ustore.NewKVDB(uint(43))
 	batch := ustore.NewWriteBatch()
