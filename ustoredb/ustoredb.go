@@ -95,7 +95,7 @@ func (db *UStoreDB) CreateColumnFamily(cfname string) (*ColumnFamilyHandle, erro
   if _, ok := db.cFamilies[cfname]; ok {
     return nil, fmt.Errorf("Column family %v already existed", cfname)
   } else {
-    cfh := &ColumnFamilyHandle{ustore.NewKVDB(uint(db.ncfs)), cfname}
+    cfh := &ColumnFamilyHandle{ustore.NewKVDB(uint(db.ncfs), cfname), cfname}
     db.ncfs++
     db.cFamilies[cfname] = cfh
     return cfh, nil
