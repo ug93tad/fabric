@@ -91,11 +91,88 @@ func (writebatch *WriteBatch) PutCF(cfh *ColumnFamilyHandle, key string, value s
 func (db *UStoreDB) GetSize() uint64 {
   return uint64(db.db.GetSize())
 }
+func (db *UStoreDB) InitMap(mapkey string) error {
+  if !db.db.InitMap(mapkey).Ok() {
+    panic("Failed to init Map")
+  }
+  return nil
+}
+
+func (db *UStoreDB) StartMapBatch(mapkey string) error {
+  if !db.db.StartMapBatch(mapkey).Ok() {
+    panic("Failed to start Map batch")
+  }
+  return nil
+}
+
+func (db *UStoreDB) GetBlob(key, version []byte) (string, error) {
+  if res := db.db.GetBlob(string(key[:]), string(version[:])); res.GetFirst().Ok() {
+    return res.GetSecond(), nil 
+  } else {
+    panic("Failed to get Blob")
+  }
+  return "", nil
+}
+
+func (db *UStoreDB) PutBlob(key, value []byte) (string, error) {
+  if res := db.db.PutBlob(string(key[:]), string(value[:])); res.GetFirst().Ok() {
+    return res.GetSecond(), nil
+  } else {
+    panic("Failed to Put Blob")
+  }
+  return "", nil
+}
+
+func (db *UStoreDB) GetLatestMap(mapkey, key []byte) (string, error) {
+  if res := db.db.GetLatestMap(string(mapkey[:]), string(key[:])); res.GetFirst().Ok() {
+    return res.GetSecond(), nil
+  } else {
+    panic("Failed to get Map ")
+  }
+  return "", nil
+}
+
+func (db *UStoreDB) GetMap(key, version []byte) (string, error) {
+  if res := db.db.GetMap(string(key[:]), string(version[:])); res.GetFirst().Ok() {
+    return res.GetSecond(), nil
+  } else {
+    panic("Failed to get Map ")
+  }
+  return "", nil
+}
+
+func (db *UStoreDB) PutMap(key, value []byte) (string, error) {
+  if res := db.db.PutMap(string(key[:]), string(value[:])); res.GetFirst().Ok() {
+    return res.GetSecond(), nil
+  } else {
+    panic("Failed to Put Map")
+  }
+  return "", nil
+}
+
+func (db *UStoreDB) SyncMap() (string, error) {
+  if res := db.db.SyncMap(); res.GetFirst().Ok() {
+    return res.GetSecond(), nil
+  } else {
+    panic("Failed to Sync Map")
+  }
+  return "", nil
+}
+
+func (db *UStoreDB) WriteMap() (string, error) {
+  if res := db.db.WriteMap(); res.GetFirst().Ok() {
+    return res.GetSecond(), nil
+  } else {
+    panic("Failed to Sync Map")
+  }
+  return "", nil
+}
+
 func (db *UStoreDB) CreateColumnFamily(cfname string) (*ColumnFamilyHandle, error) {
   if _, ok := db.cFamilies[cfname]; ok {
     return nil, fmt.Errorf("Column family %v already existed", cfname)
   } else {
-    cfh := &ColumnFamilyHandle{ustore.NewKVDB(uint(db.ncfs)), cfname}
+    cfh := &ColumnFamilyHandle{ustore.NewKVDB(uint(db.ncfs), cfname), cfname}
     db.ncfs++
     db.cFamilies[cfname] = cfh
     return cfh, nil

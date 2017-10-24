@@ -30,7 +30,9 @@ var stateKeyDelimiter = []byte{0x00}
 // This assumes that chaincodeID does not contain a 0x00 byte, but the key may
 // TODO:enforce this restriction on chaincodeID or use length prefixing here instead of delimiter
 func ConstructCompositeKey(chaincodeID string, key string) []byte {
-	return bytes.Join([][]byte{[]byte(chaincodeID), []byte(key)}, stateKeyDelimiter)
+	//return bytes.Join([][]byte{[]byte(chaincodeID), []byte(key)}, stateKeyDelimiter)
+  return []byte(key)
+  //return bytes.Join([][]byte{[]byte(chaincodeID), []byte(key)}, stateKeyDelimiter)
 }
 
 // DecodeCompositeKey decodes the compositeKey constructed by ConstructCompositeKey method

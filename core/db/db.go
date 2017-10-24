@@ -271,6 +271,76 @@ func (openchainDB *OpenchainDB) Get(cfHandler *gorocksdb.ColumnFamilyHandle, key
 	return data, nil
 }
 
+func (openchainDB *OpenchainDB) GetBlob(key, version []byte) ([]byte, error) {
+  slice, _:= openchainDB.DB.GetBlob(key, version)
+  defer slice.Free()
+  if slice.Data() == nil {
+    return nil, nil
+  }
+  data := makeCopy(slice.Data())
+  return data, nil
+}
+
+func (openchainDB *OpenchainDB) PutBlob(key, value []byte) ([]byte, error) {
+  slice, _ := openchainDB.DB.PutBlob(key, value)
+  defer slice.Free()
+  if slice.Data() == nil {
+    return nil, nil
+  }
+  data := makeCopy(slice.Data())
+  return data, nil
+}
+
+func (openchainDB *OpenchainDB) GetMap(key, version []byte) ([]byte, error) {
+  slice, _:= openchainDB.DB.GetMap(key, version)
+  defer slice.Free()
+  if slice.Data() == nil {
+    return nil, nil
+  }
+  data := makeCopy(slice.Data())
+  return data, nil
+}
+
+func (openchainDB *OpenchainDB) GetLatestMap(mapkey, key []byte) ([]byte, error) {
+  slice, _:= openchainDB.DB.GetLatestMap(mapkey, key)
+  defer slice.Free()
+  if slice.Data() == nil {
+    return nil, nil
+  }
+  data := makeCopy(slice.Data())
+  return data, nil
+}
+
+func (openchainDB *OpenchainDB) PutMap(key, value []byte) ([]byte, error) {
+  slice, _ := openchainDB.DB.PutMap(key, value)
+  defer slice.Free()
+  if slice.Data() == nil {
+    return nil, nil
+  }
+  data := makeCopy(slice.Data())
+  return data, nil
+}
+
+func (openchainDB *OpenchainDB) SyncMap() ([]byte, error) {
+  slice, _ := openchainDB.DB.SyncMap()
+  defer slice.Free()
+  if slice.Data() == nil {
+    return nil, nil
+  }
+  data := makeCopy(slice.Data())
+  return data, nil
+}
+
+func (openchainDB *OpenchainDB) WriteMap() ([]byte, error) {
+  slice, _ := openchainDB.DB.WriteMap()
+  defer slice.Free()
+  if slice.Data() == nil {
+    return nil, nil
+  }
+  data := makeCopy(slice.Data())
+  return data, nil
+}
+
 // Put saves the key/value in the given column family
 func (openchainDB *OpenchainDB) Put(cfHandler *gorocksdb.ColumnFamilyHandle, key []byte, value []byte) error {
 	opt := gorocksdb.NewDefaultWriteOptions()

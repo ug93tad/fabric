@@ -54,6 +54,10 @@ type State struct {
 	txStateDeltaHash      map[string][]byte
 	updateStateImpl       bool
 	historyStateDeltaSize uint64
+  db                    *db.OpenchainDB
+  recomputeHash         bool
+  lastComputedHash      []byte
+  ccids                 map[string]bool   // set of chaincodeID
 }
 
 // NewState constructs a new State. This Initializes encapsulated state implementation
@@ -75,7 +79,7 @@ func NewState() *State {
 		panic(fmt.Errorf("Error during initialization of state implementation: %s", err))
 	}
 	return &State{stateImpl, statemgmt.NewStateDelta(), statemgmt.NewStateDelta(), "", make(map[string][]byte),
-		false, uint64(deltaHistorySize)}
+		false, uint64(deltaHistorySize), db.GetDBHandle(), true, nil, make(map[string]bool)}
 }
 
 // TxBegin marks begin of a new tx. If a tx is already in progress, this call panics
@@ -115,6 +119,7 @@ func (state *State) txInProgress() bool {
 // pulls from db. If committed is true, this pulls from the db only.
 func (state *State) Get(chaincodeID string, key string, committed bool) ([]byte, error) {
 	if !committed {
+    panic("Not in a tx")
 		valueHolder := state.currentTxStateDelta.Get(chaincodeID, key)
 		if valueHolder != nil {
 			return valueHolder.GetValue(), nil
@@ -124,7 +129,11 @@ func (state *State) Get(chaincodeID string, key string, committed bool) ([]byte,
 			return valueHolder.GetValue(), nil
 		}
 	}
-	return state.stateImpl.Get(chaincodeID, key)
+  k := statemgmt.ConstructCompositeKey(chaincodeID, key)
+  //k := []byte(key)
+  ver, _ := state.db.GetLatestMap([]byte(chaincodeID), k)
+  return state.db.GetBlob(k, ver)
+	//return state.stateImpl.Get(chaincodeID, key)
 }
 
 // GetRangeScanIterator returns an iterator to get all the keys (and values) between startKey and endKey
@@ -152,6 +161,7 @@ func (state *State) Set(chaincodeID string, key string, value []byte) error {
 		panic("State can be changed only in context of a tx.")
 	}
 
+  /*
 	// Check if a previous value is already set in the state delta
 	if state.currentTxStateDelta.IsUpdatedValueSet(chaincodeID, key) {
 		// No need to bother looking up the previous value as we will not
@@ -165,7 +175,8 @@ func (state *State) Set(chaincodeID string, key string, value []byte) error {
 		}
 		state.currentTxStateDelta.Set(chaincodeID, key, value, previousValue)
 	}
-
+  */
+  state.currentTxStateDelta.Set(chaincodeID, key, value, nil)
 	return nil
 }
 
@@ -237,12 +248,36 @@ func (state *State) SetMultipleKeys(chaincodeID string, kvs map[string][]byte) e
 	return nil
 }
 
+func (state *State) GetUStoreHash() ([]byte, error) {
+  if state.recomputeHash {
+    ccIds := state.stateDelta.GetUpdatedChaincodeIds(true)
+    for _,id := range(ccIds) {
+      db.GetDBHandle().DB.StartMapBatch(id)
+      kvs := state.stateDelta.GetUpdates(id)
+      for key, val := range(kvs) {
+        // persit to Blob first
+        k := statemgmt.ConstructCompositeKey(id, key)
+        //k := []byte(key)
+        version, _ := state.db.PutBlob(k, val.Value)
+        state.db.PutMap(k, version)
+      }
+      state.db.SyncMap()
+    }
+    state.lastComputedHash, _ = state.db.WriteMap()
+    state.recomputeHash = false
+    logger.Infof("1st compute crypto hash, value: %v", state.lastComputedHash)
+  } else {
+    logger.Infof("Recomputed crypto hash, value: %v", state.lastComputedHash)
+  }
+  return state.lastComputedHash, nil
+}
+
 // GetHash computes new state hash if the stateDelta is to be applied.
 // Recomputes only if stateDelta has changed after most recent call to this function
 func (state *State) GetHash() ([]byte, error) {
 	logger.Debug("Enter - GetHash()")
 	if state.updateStateImpl {
-		logger.Debug("updating stateImpl with working-set")
+		logger.Debug("updating  stateImpl with working-set")
 		state.stateImpl.PrepareWorkingSet(state.stateDelta)
 		state.updateStateImpl = false
 	}
@@ -260,11 +295,16 @@ func (state *State) GetTxStateDeltaHash() map[string][]byte {
 	return state.txStateDeltaHash
 }
 
+func (state *State) PrepareToCommit() {
+  state.recomputeHash = true
+}
+
 // ClearInMemoryChanges remove from memory all the changes to state
 func (state *State) ClearInMemoryChanges(changesPersisted bool) {
 	state.stateDelta = statemgmt.NewStateDelta()
 	state.txStateDeltaHash = make(map[string][]byte)
 	state.stateImpl.ClearWorkingSet(changesPersisted)
+  state.recomputeHash = false
 }
 
 // getStateDelta get changes in state after most recent call to method clearInMemoryChanges

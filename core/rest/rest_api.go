@@ -646,6 +646,7 @@ func (s *ServerOpenchainREST) GetBlockchainInfo(rw web.ResponseWriter, req *web.
 		// Failure
 		rw.WriteHeader(http.StatusBadRequest)
 		encoder.Encode(restResult{Error: err.Error()})
+    panic("Failed in GetBlockchainInfo")
 	} else {
 		// Success
 		rw.WriteHeader(http.StatusOK)

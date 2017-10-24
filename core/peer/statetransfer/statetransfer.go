@@ -608,6 +608,7 @@ func (sts *coordinatorImpl) blockThread() {
 func (sts *coordinatorImpl) attemptStateTransfer(blockNumber uint64, peerIDs []*pb.PeerID, blockHash []byte) (error, bool) {
 	var err error
 
+  logger.Infof("Starting attemptStateTransfer, currentStateBlockNumber: %v, vs. current blockNo: %v", sts.currentStateBlockNumber, blockNumber)
 	if sts.currentStateBlockNumber+uint64(sts.maxStateDeltas) < blockNumber {
 		sts.stateValid = false
 	}
@@ -669,6 +670,7 @@ func (sts *coordinatorImpl) attemptStateTransfer(blockNumber uint64, peerIDs []*
 		return fmt.Errorf("Could not get block %d though we just retrieved it: %s", sts.currentStateBlockNumber, err), true
 	}
 
+  logger.Infof("current statehash: %v, block hash: %v", stateHash, block.StateHash)
 	if !bytes.Equal(stateHash, block.StateHash) {
 		if sts.stateValid {
 			sts.stateValid = false
@@ -689,6 +691,7 @@ func (sts *coordinatorImpl) attemptStateTransfer(blockNumber uint64, peerIDs []*
 			return fmt.Errorf("Was unable to play the state from block number %d forward to block %d: %s", sts.currentStateBlockNumber, blockNumber, err), true
 		}
 	}
+  logger.Infof("Done attemptStateTransfer")
 
 	return nil, true
 }

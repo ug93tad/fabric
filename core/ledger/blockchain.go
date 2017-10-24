@@ -45,6 +45,8 @@ type lastProcessedBlock struct {
 
 var indexBlockDataSynchronously = true
 
+var blockchainKey = []byte("blockchainKey")
+
 func newBlockchain() (*blockchain, error) {
 //	size, err := fetchBlockchainSizeFromDB()
 //	if err != nil {
@@ -57,6 +59,7 @@ func newBlockchain() (*blockchain, error) {
 	blockchain := &blockchain{0, nil, nil, nil}
 	blockchain.size = size
 	if size > 0 {
+    panic("Not implemented")
 		previousBlock, err := fetchBlockFromDB(size - 1)
 		if err != nil {
 			return nil, err
@@ -104,12 +107,20 @@ func (blockchain *blockchain) getBlock(blockNumber uint64) (*protos.Block, error
 }
 
 // getBlockByHash get block by block hash
+// in UStore, blockhash is the version
 func (blockchain *blockchain) getBlockByHash(blockHash []byte) (*protos.Block, error) {
+  blockBytes, err := db.GetDBHandle().GetBlob(blockchainKey, blockHash)
+  if err != nil {
+    return nil, err
+  }
+  return protos.UnmarshallBlock(blockBytes) 
+  /*
 	blockNumber, err := blockchain.indexer.fetchBlockNumberByBlockHash(blockHash)
 	if err != nil {
 		return nil, err
 	}
 	return blockchain.getBlock(blockNumber)
+  */
 }
 
 func (blockchain *blockchain) getTransactionByID(txID string) (*protos.Transaction, error) {
@@ -194,6 +205,7 @@ func (blockchain *blockchain) buildBlock(block *protos.Block, stateHash []byte) 
 	return block
 }
 
+// Write block as Blob
 func (blockchain *blockchain) addPersistenceChangesForNewBlock(ctx context.Context,
 	block *protos.Block, stateHash []byte, writeBatch *gorocksdb.WriteBatch) (uint64, error) {
 	block = blockchain.buildBlock(block, stateHash)
@@ -203,15 +215,22 @@ func (blockchain *blockchain) addPersistenceChangesForNewBlock(ctx context.Conte
 		block.NonHashData.LocalLedgerCommitTimestamp = util.CreateUtcTimestamp()
 	}
 	blockNumber := blockchain.size
+  /*
 	blockHash, err := block.GetHash()
 	if err != nil {
 		return 0, err
 	}
+  */
 	blockBytes, blockBytesErr := block.Bytes()
 	if blockBytesErr != nil {
 		return 0, blockBytesErr
 	}
-	writeBatch.PutCF(db.GetDBHandle().BlockchainCF, encodeBlockNumberDBKey(blockNumber), blockBytes)
+  blockHash, err := db.GetDBHandle().PutBlob(blockchainKey, blockBytes)
+  if err != nil {
+    return 0, err
+  }
+	//writeBatch.PutCF(db.GetDBHandle().BlockchainCF, encodeBlockNumberDBKey(blockNumber), blockBytes)
+  writeBatch.PutCF(db.GetDBHandle().BlockchainCF, encodeBlockNumberDBKey(blockNumber), blockHash)
 	writeBatch.PutCF(db.GetDBHandle().BlockchainCF, blockCountKey, encodeUint64(blockNumber+1))
 	if blockchain.indexer.isSynchronous() {
 		blockchain.indexer.createIndexes(block, blockNumber, blockHash, writeBatch)
@@ -271,6 +290,7 @@ func (blockchain *blockchain) persistRawBlock(block *protos.Block, blockNumber u
 	return nil
 }
 
+// fetch from USTORE Blob
 func fetchBlockFromDB(blockNumber uint64) (*protos.Block, error) {
 	blockBytes, err := db.GetDBHandle().GetFromBlockchainCF(encodeBlockNumberDBKey(blockNumber))
 	if err != nil {
@@ -279,9 +299,14 @@ func fetchBlockFromDB(blockNumber uint64) (*protos.Block, error) {
 	if blockBytes == nil {
 		return nil, nil
 	}
-	return protos.UnmarshallBlock(blockBytes)
+
+  // then fetch from ustore
+  data, err := db.GetDBHandle().GetBlob(blockchainKey, blockBytes)
+  return protos.UnmarshallBlock(data)
+	//return protos.UnmarshallBlock(blockBytes)
 }
 
+// no change with UStore
 func fetchBlockchainSizeFromDB() (uint64, error) {
 	bytes, err := db.GetDBHandle().GetFromBlockchainCF(blockCountKey)
 	if err != nil {

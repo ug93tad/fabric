@@ -33,6 +33,11 @@ func notSupported(opts *Options) {
 	}
 }
 
+func onlyUStore() {
+  if dbtype != UStoreDB {
+    panic("Only supported in UStore")
+  }
+}
 // OpenDb opens a database with the specified options.
 func OpenDb(opts *Options, name string) (*DB, error) {
   fmt.Printf("Open DB with dbtype: %v\n", opts.dbtype)
@@ -510,6 +515,58 @@ func (db *DB) DropColumnFamily(c *ColumnFamilyHandle) error {
 		return errors.New(C.GoString(cErr))
 	}
 	return nil
+}
+
+func (db *DB) InitMap(key string) error {
+  onlyUStore();
+  return db.udb.InitMap(key)
+}
+
+func (db *DB) StartMapBatch(key string) error {
+  onlyUStore();
+  return db.udb.StartMapBatch(key)
+}
+
+func (db *DB) GetBlob(key, version []byte) (*Slice, error) {
+  onlyUStore();
+  val, _ := db.udb.GetBlob(key, version)
+  return NewUStoreSlice(val), nil
+}
+
+func (db *DB) PutBlob(key, value []byte) (*Slice, error) {
+  onlyUStore();
+  val, _ := db.udb.PutBlob(key, value)
+  return NewUStoreSlice(val), nil
+}
+
+func (db *DB) PutMap(key, value []byte) (*Slice, error) {
+  onlyUStore();
+  val, _ := db.udb.PutMap(key, value)
+  return NewUStoreSlice(val), nil
+}
+
+func (db *DB) SyncMap() (*Slice, error) {
+  onlyUStore();
+  val, _ := db.udb.SyncMap()
+  return NewUStoreSlice(val), nil
+}
+
+func (db *DB) WriteMap() (*Slice, error) {
+  onlyUStore();
+  val, _ := db.udb.WriteMap()
+  return NewUStoreSlice(val), nil
+}
+
+func (db *DB) GetMap(key, version []byte) (*Slice, error) {
+  onlyUStore();
+  val, _ := db.udb.GetMap(key, version) 
+  return NewUStoreSlice(val), nil
+}
+
+func (db *DB) GetLatestMap(mapkey, key []byte) (*Slice, error) {
+  onlyUStore();
+  val, _ := db.udb.GetLatestMap(mapkey, key) 
+  return NewUStoreSlice(val), nil
 }
 
 // GetApproximateSizes returns the approximate number of bytes of file system

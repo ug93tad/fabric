@@ -60,7 +60,7 @@ type Error struct {
 }
 
 func (ledgerError *Error) Error() string {
-	return fmt.Sprintf("LedgerError - %s: %s", ledgerError.errType, ledgerError.msg)
+	return fmt.Sprintf(" LedgerError - %s: %s", ledgerError.errType, ledgerError.msg)
 }
 
 //Type returns the type of the error
@@ -95,7 +95,7 @@ type Ledger struct {
 var ledger *Ledger
 var ledgerError error
 var once sync.Once
-
+var stateKey = "s"
 // GetLedger - gives a reference to a 'singleton' ledger
 func GetLedger() (*Ledger, error) {
 	once.Do(func() {
@@ -111,6 +111,7 @@ func GetLedger() (*Ledger, error) {
     ledger.nWrites = 0
     ledger.totalReadTime = 0
     ledger.totalWriteTime = 0
+    db.GetDBHandle().DB.InitMap(stateKey)
 	})
 	return ledger, ledgerError
 }
@@ -146,6 +147,7 @@ func (ledger *Ledger) BeginTxBatch(id interface{}) error {
 	return nil
 }
 
+
 // GetTXBatchPreviewBlockInfo returns a preview block info that will
 // contain the same information as GetBlockchainInfo will return after
 // ledger.CommitTxBatch is called with the same parameters. If the
@@ -153,6 +155,7 @@ func (ledger *Ledger) BeginTxBatch(id interface{}) error {
 // contained hash will be different.
 func (ledger *Ledger) GetTXBatchPreviewBlockInfo(id interface{},
 	transactions []*protos.Transaction, metadata []byte) (*protos.BlockchainInfo, error) {
+    panic("Not implemented...")
 	err := ledger.checkValidIDCommitORRollback(id)
 	if err != nil {
 		return nil, err
@@ -175,7 +178,9 @@ func (ledger *Ledger) CommitTxBatch(id interface{}, transactions []*protos.Trans
 		return err
 	}
 
-	stateHash, err := ledger.state.GetHash()
+	//stateHash, err := ledger.state.GetHash()
+  ledger.state.PrepareToCommit()
+  stateHash, err := ledger.state.GetUStoreHash()
 	if err != nil {
 		ledger.resetForNextTxGroup(false)
 		ledger.blockchain.blockPersistenceStatus(false)
@@ -211,15 +216,18 @@ func (ledger *Ledger) CommitTxBatch(id interface{}, transactions []*protos.Trans
 	block.NonHashData = &protos.NonHashData{ChaincodeEvents: ccEvents}
 	newBlockNumber, err := ledger.blockchain.addPersistenceChangesForNewBlock(context.TODO(), block, stateHash, writeBatch)
 	if err != nil {
+    panic("Something wrong during commit...")
 		ledger.resetForNextTxGroup(false)
 		ledger.blockchain.blockPersistenceStatus(false)
 		return err
 	}
-	ledger.state.AddChangesForPersistence(newBlockNumber, writeBatch)
+  
+	//ledger.state.AddChangesForPersistence(newBlockNumber, writeBatch)
 	opt := gorocksdb.NewDefaultWriteOptions()
 	defer opt.Destroy()
 	dbErr := db.GetDBHandle().DB.Write(opt, writeBatch)
 	if dbErr != nil {
+    panic("Something wrong during commit ...")
 		ledger.resetForNextTxGroup(false)
 		ledger.blockchain.blockPersistenceStatus(false)
 		return dbErr
@@ -234,8 +242,9 @@ func (ledger *Ledger) CommitTxBatch(id interface{}, transactions []*protos.Trans
 	sendChaincodeEvents(transactionResults)
 
 	if len(transactionResults) != 0 {
-		ledgerLogger.Debug("There were some erroneous transactions. We need to send a 'TX rejected' message here.")
+		ledgerLogger.Debugf("There were some erroneous transactions. We need to send a 'TX rejected' message here.")
 	}
+  ledgerLogger.Infof("Commited block %v, hash:%v", newBlockNumber, stateHash)
 	return nil
 }
 
@@ -269,7 +278,8 @@ func (ledger *Ledger) TxFinished(txID string, txSuccessful bool) {
 // GetTempStateHash - Computes state hash by taking into account the state changes that may have taken
 // place during the execution of current transaction-batch
 func (ledger *Ledger) GetTempStateHash() ([]byte, error) {
-	return ledger.state.GetHash()
+  return ledger.state.GetUStoreHash()
+  //return nil, nil
 }
 
 // GetTempStateHashWithTxDeltaStateHashes - In addition to the state hash (as defined in method GetTempStateHash),
@@ -489,6 +499,7 @@ func (ledger *Ledger) PutRawBlock(block *protos.Block, blockNumber uint64) error
 // lowBlock is the low block in the chain to include in verification. If
 // you wish to verify the entire chain, use 0 for the genesis block.
 func (ledger *Ledger) VerifyChain(highBlock, lowBlock uint64) (uint64, error) {
+  panic("Not implemented")
 	if highBlock >= ledger.GetBlockchainSize() {
 		return highBlock, ErrOutOfBounds
 	}
