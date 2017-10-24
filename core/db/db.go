@@ -291,18 +291,8 @@ func (openchainDB *OpenchainDB) PutBlob(key, value []byte) ([]byte, error) {
   return data, nil
 }
 
-func (openchainDB *OpenchainDB) GetMap(key, version []byte) ([]byte, error) {
-  slice, _:= openchainDB.DB.GetMap(key, version)
-  defer slice.Free()
-  if slice.Data() == nil {
-    return nil, nil
-  }
-  data := makeCopy(slice.Data())
-  return data, nil
-}
-
-func (openchainDB *OpenchainDB) GetLatestMap(mapkey, key []byte) ([]byte, error) {
-  slice, _:= openchainDB.DB.GetLatestMap(mapkey, key)
+func (openchainDB *OpenchainDB) GetMap(ss ...[]byte) ([]byte, error) {
+  slice, _:= openchainDB.DB.GetMap(ss...)
   defer slice.Free()
   if slice.Data() == nil {
     return nil, nil

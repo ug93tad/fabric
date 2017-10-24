@@ -557,15 +557,9 @@ func (db *DB) WriteMap() (*Slice, error) {
   return NewUStoreSlice(val), nil
 }
 
-func (db *DB) GetMap(key, version []byte) (*Slice, error) {
+func (db *DB) GetMap(ss ...[]byte) (*Slice, error) {
   onlyUStore();
-  val, _ := db.udb.GetMap(key, version) 
-  return NewUStoreSlice(val), nil
-}
-
-func (db *DB) GetLatestMap(mapkey, key []byte) (*Slice, error) {
-  onlyUStore();
-  val, _ := db.udb.GetLatestMap(mapkey, key) 
+  val, _ := db.udb.GetMap(ss...) 
   return NewUStoreSlice(val), nil
 }
 

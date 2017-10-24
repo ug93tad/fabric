@@ -105,13 +105,14 @@ func (db *UStoreDB) StartMapBatch(mapkey string) error {
   return nil
 }
 
-func (db *UStoreDB) GetBlob(key, version []byte) (string, error) {
-  if res := db.db.GetBlob(string(key[:]), string(version[:])); res.GetFirst().Ok() {
-    return res.GetSecond(), nil 
+func (db *UStoreDB) GetBlob(ss ...[]byte) (string, error) {
+  var res ustore.PairStatusString
+  if len(ss) == 1 {
+    res = db.db.GetBlob(string(ss[0][:]))
   } else {
-    panic("Failed to get Blob")
+    res = db.db.GetBlob(string(ss[0][:]), string(ss[1][:]))
   }
-  return "", nil
+  return res.GetSecond(), nil
 }
 
 func (db *UStoreDB) PutBlob(key, value []byte) (string, error) {
@@ -123,22 +124,14 @@ func (db *UStoreDB) PutBlob(key, value []byte) (string, error) {
   return "", nil
 }
 
-func (db *UStoreDB) GetLatestMap(mapkey, key []byte) (string, error) {
-  if res := db.db.GetLatestMap(string(mapkey[:]), string(key[:])); res.GetFirst().Ok() {
-    return res.GetSecond(), nil
+func (db *UStoreDB) GetMap(ss ...[]byte) (string, error) {
+  var res ustore.PairStatusString
+  if len(ss) == 2 {
+    res = db.db.GetMap(string(ss[0][:]), string(ss[1][:]))
   } else {
-    panic("Failed to get Map ")
+    res = db.db.GetMap(string(ss[0][:]), string(ss[1][:]), string(ss[2][:]))
   }
-  return "", nil
-}
-
-func (db *UStoreDB) GetMap(key, version []byte) (string, error) {
-  if res := db.db.GetMap(string(key[:]), string(version[:])); res.GetFirst().Ok() {
-    return res.GetSecond(), nil
-  } else {
-    panic("Failed to get Map ")
-  }
-  return "", nil
+  return res.GetSecond(), nil
 }
 
 func (db *UStoreDB) PutMap(key, value []byte) (string, error) {

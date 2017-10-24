@@ -382,20 +382,41 @@ func TestKVDB_MapOps(t *testing.T) {
   stateKey := "stateKey"
   kvdb := ustore.NewKVDB(uint(42))
   kvdb.InitMap(stateKey)
+  kvdb.StartMapBatch("batch1")
   keys := []string {"key1", "key2", "key3"}
   vals := []string {"val1", "val2", "val3"}
-  
+
   res1 := check_result(kvdb.PutMap(keys[0], vals[0]), t)
   check_result(kvdb.PutMap(keys[1], vals[1]), t)
 
   // then put again
-  check_result(kvdb.PutMap(keys[0], vals[2]), t)
+  check_result(kvdb.PutMap(keys[2], vals[2]), t)
+  batch1Version := kvdb.SyncMap().GetSecond()
+  topVersion1 := kvdb.WriteMap().GetSecond()
 
-  // get latest map
-  correct(check_result(kvdb.GetLatestMap(keys[0]), t), vals[2], t)
-  // get previous version
-  correct(check_result(kvdb.GetMap(keys[0], res1), t), vals[0], t) 
-  fmt.Printf("version: %v, len %v\n", res1, len(res1))
+  kvdb.StartMapBatch("batch1")
+  check_result(kvdb.PutMap(keys[1], vals[2]), t)
+  check_result(kvdb.PutMap(keys[2], vals[0]), t)
+  batch2Version := kvdb.SyncMap().GetSecond()
+  topVersion2 := kvdb.WriteMap().GetSecond()
+  fmt.Printf("res1: %v, batch1Version:%x, topVersion1:%x, batch2Version: %x, topVersion2: %x\n", res1, batch1Version, topVersion1, batch2Version, topVersion2)
+
+  iterator := kvdb.NewMapIterator("batch1", batch1Version)
+  iterator.SeekToFirst()
+  idx := 0
+  for ; iterator.Valid(); iterator.Next() {
+    correct(iterator.Key(), keys[idx], t)
+    correct(iterator.Value(), vals[idx], t)
+    idx++
+  }
+
+  // test GetMap
+  v := check_result(kvdb.GetMap("batch1", keys[2]), t)
+  v1 := check_result(kvdb.GetMap("batch1", keys[2], batch1Version), t)
+  v3 := check_result(kvdb.GetPreviousVersion("batch1", batch2Version), t)
+  correct(v, vals[0], t)
+  correct(v1, vals[2], t)
+  correct(v3, batch1Version, t)
 }
 
 func TestKVDB_BlobOps(t *testing.T) {

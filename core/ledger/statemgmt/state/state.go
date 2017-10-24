@@ -131,7 +131,7 @@ func (state *State) Get(chaincodeID string, key string, committed bool) ([]byte,
 	}
   k := statemgmt.ConstructCompositeKey(chaincodeID, key)
   //k := []byte(key)
-  ver, _ := state.db.GetLatestMap([]byte(chaincodeID), k)
+  ver, _ := state.db.GetMap([]byte(chaincodeID), k)
   return state.db.GetBlob(k, ver)
 	//return state.stateImpl.Get(chaincodeID, key)
 }
