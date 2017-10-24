@@ -26,7 +26,6 @@ type UStoreDB struct {
 
 
 var once sync.Once
-
 func OpenDB() (*UStoreDB, error) {
     db := ustore.NewKVDB(uint(0))
     return  &UStoreDB{db, make(map[string]*ColumnFamilyHandle), 1}, nil
@@ -34,7 +33,6 @@ func OpenDB() (*UStoreDB, error) {
 
 func Close(db *UStoreDB) {
   ustore.DeleteKVDB(db.db)
-
   /*
   for cf := range db.cFamilies {
     delete(db.cFamilies, cf)

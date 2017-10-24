@@ -189,6 +189,11 @@ func (openchainDB *OpenchainDB) open() {
 	opts.SetCreateIfMissing(missing)
 	opts.SetCreateIfMissingColumnFamilies(true)
 
+  compression := viper.GetBool("peer.db.compression")
+  dbLogger.Infof("Setting compression: %v\n", compression)
+  if !compression {
+    opts.SetCompression(gorocksdb.NoCompression)
+  }
   dbtype := viper.GetString("peer.db.dbtype")
   if dbtype == "ustore" {    
     opts.SetDbType(dbtype)

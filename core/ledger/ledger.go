@@ -104,7 +104,7 @@ func GetLedger() (*Ledger, error) {
     config.SetEnvPrefix("ledger") // variable is LEDGER_SAMPLE_INTERNVAL
     config.AutomaticEnv()
     sampleInterval := config.GetInt("sample_interval")
-    ledgerLogger.Infof("Sample interval : %v", sampleInterval)
+    ledgerLogger.Infof("Sample interval: %v", sampleInterval)
     ledger.statUtil.NewStat("ledgerput", uint32(sampleInterval))
     ledger.statUtil.NewStat("ledgerget", uint32(sampleInterval))
     ledger.nReads = 0
@@ -176,6 +176,7 @@ func (ledger *Ledger) CommitTxBatch(id interface{}, transactions []*protos.Trans
 	}
 
 	stateHash, err := ledger.state.GetHash()
+
 	if err != nil {
 		ledger.resetForNextTxGroup(false)
 		ledger.blockchain.blockPersistenceStatus(false)
@@ -215,7 +216,9 @@ func (ledger *Ledger) CommitTxBatch(id interface{}, transactions []*protos.Trans
 		ledger.blockchain.blockPersistenceStatus(false)
 		return err
 	}
+
 	ledger.state.AddChangesForPersistence(newBlockNumber, writeBatch)
+
 	opt := gorocksdb.NewDefaultWriteOptions()
 	defer opt.Destroy()
 	dbErr := db.GetDBHandle().DB.Write(opt, writeBatch)
@@ -233,6 +236,7 @@ func (ledger *Ledger) CommitTxBatch(id interface{}, transactions []*protos.Trans
 	//send chaincode events from transaction results
 	sendChaincodeEvents(transactionResults)
 
+  ledgerLogger.Infof("Commited block: %v, with hash: %v", newBlockNumber, stateHash)
 	if len(transactionResults) != 0 {
 		ledgerLogger.Debug("There were some erroneous transactions. We need to send a 'TX rejected' message here.")
 	}
@@ -269,7 +273,8 @@ func (ledger *Ledger) TxFinished(txID string, txSuccessful bool) {
 // GetTempStateHash - Computes state hash by taking into account the state changes that may have taken
 // place during the execution of current transaction-batch
 func (ledger *Ledger) GetTempStateHash() ([]byte, error) {
-	return ledger.state.GetHash()
+  return nil, nil
+	//return ledger.state.GetHash()
 }
 
 // GetTempStateHashWithTxDeltaStateHashes - In addition to the state hash (as defined in method GetTempStateHash),

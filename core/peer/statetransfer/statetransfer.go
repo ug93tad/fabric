@@ -608,6 +608,7 @@ func (sts *coordinatorImpl) blockThread() {
 func (sts *coordinatorImpl) attemptStateTransfer(blockNumber uint64, peerIDs []*pb.PeerID, blockHash []byte) (error, bool) {
 	var err error
 
+  logger.Infof("Starting attemptStateTransfer")
 	if sts.currentStateBlockNumber+uint64(sts.maxStateDeltas) < blockNumber {
 		sts.stateValid = false
 	}
@@ -690,6 +691,7 @@ func (sts *coordinatorImpl) attemptStateTransfer(blockNumber uint64, peerIDs []*
 		}
 	}
 
+  logger.Infof("Done attemptStateTransfer")
 	return nil, true
 }
 

@@ -208,7 +208,7 @@ func serve(args []string) error {
 		sig := <-sigs
 		fmt.Println()
 		fmt.Println(sig)
-    logger.Infof("Stopping peer...")
+    logger.Infof("Stopping peer ...")
     db.Stop()
 		serve <- nil
 	}()
