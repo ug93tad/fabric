@@ -247,6 +247,9 @@ func ListColumnFamilies(opts *Options, name string) ([]string, error) {
 	return names, nil
 }
 
+func (db *DB) GetUStoreDB() *ustoredb.UStoreDB {
+  return db.udb
+}
 // UnsafeGetDB returns the underlying c rocksdb instance.
 func (db *DB) UnsafeGetDB() unsafe.Pointer {
   notSupported(db.opts)
