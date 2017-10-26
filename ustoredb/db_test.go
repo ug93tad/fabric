@@ -407,6 +407,11 @@ func TestKVDB_MapOps(t *testing.T) {
   for ; iterator.Valid(); iterator.Next() {
     correct(iterator.Key(), keys[idx], t)
     correct(iterator.Value(), vals[idx], t)
+    for i:=0; i<10; i++ {
+      x1 := iterator.Key()
+      x2 := iterator.Value()
+      fmt.Printf("x1: %x, x2: %x\n", x1, x2)
+    }
     idx++
   }
 

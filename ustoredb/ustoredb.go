@@ -88,6 +88,10 @@ func (writebatch *WriteBatch) PutCF(cfh *ColumnFamilyHandle, key string, value s
   return nil
 }
 
+func (db *UStoreDB) GetDB() ustore.KVDB {
+  return db.db
+}
+
 func (db *UStoreDB) GetSize() uint64 {
   return uint64(db.db.GetSize())
 }
@@ -112,7 +116,11 @@ func (db *UStoreDB) GetBlob(ss ...[]byte) (string, error) {
   } else {
     res = db.db.GetBlob(string(ss[0][:]), string(ss[1][:]))
   }
-  return res.GetSecond(), nil
+  if !res.GetFirst().Ok() {
+    return "", fmt.Errorf("Failed to get map")
+  } else {
+    return res.GetSecond(), nil
+  }
 }
 
 func (db *UStoreDB) PutBlob(key, value []byte) (string, error) {
@@ -131,7 +139,11 @@ func (db *UStoreDB) GetMap(ss ...[]byte) (string, error) {
   } else {
     res = db.db.GetMap(string(ss[0][:]), string(ss[1][:]), string(ss[2][:]))
   }
-  return res.GetSecond(), nil
+  if !res.GetFirst().Ok() {
+    return "", fmt.Errorf("Failed to get map")
+  } else {
+    return res.GetSecond(), nil
+  }
 }
 
 func (db *UStoreDB) PutMap(key, value []byte) (string, error) {
