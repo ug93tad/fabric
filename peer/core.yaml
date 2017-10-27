@@ -364,6 +364,7 @@ ledger:
         # has been created. 'numBuckets' defines the number of bins that the
         # state key-values are to be divided
         numBuckets: 1000003
+#        numBuckets: 50
         # 'maxGroupingAtEachLevel' defines the number of bins that are grouped
         #together to construct next level of the merkle-tree (this is applied
         # repeatedly for constructing the entire tree).

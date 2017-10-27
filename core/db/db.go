@@ -194,6 +194,13 @@ func (openchainDB *OpenchainDB) open() {
   if !compression {
     opts.SetCompression(gorocksdb.NoCompression)
   }
+//  opts.SetMaxBackgroundCompactions(0)
+/*  opts.SetLevel0FileNumCompactionTrigger(-1)
+  opts.SetLevel0SlowdownWritesTrigger(-1)
+  opts.SetLevel0StopWritesTrigger(1000)
+  opts.SetPurgeRedundantKvsWhileFlush(false)
+*/
+  opts.SetNumLevels(1)
   dbtype := viper.GetString("peer.db.dbtype")
   if dbtype == "ustore" {    
     opts.SetDbType(dbtype)
@@ -207,7 +214,7 @@ func (openchainDB *OpenchainDB) open() {
 	}
 
 	db, cfHandlers, err := gorocksdb.OpenDbColumnFamilies(opts, dbPath, cfNames, cfOpts)
-
+  db.DisableFileDeletions()
 	if err != nil {
 		panic(fmt.Sprintf("Error opening DB: %s", err))
 	}

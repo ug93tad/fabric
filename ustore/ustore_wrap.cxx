@@ -927,6 +927,29 @@ ustore_kvdb::Iterator *_wrap_KVDB_NewIterator_ustore_b40e736282a5577d(ustore_kvd
 }
 
 
+ustore_kvdb::MapIterator *_wrap_KVDB_NewMapIterator_ustore_b40e736282a5577d(ustore_kvdb::KVDB *_swig_go_0, _gostring_ _swig_go_1, _gostring_ _swig_go_2) {
+  ustore_kvdb::KVDB *arg1 = (ustore_kvdb::KVDB *) 0 ;
+  std::string *arg2 = 0 ;
+  std::string *arg3 = 0 ;
+  ustore_kvdb::MapIterator *result = 0 ;
+  ustore_kvdb::MapIterator *_swig_go_result;
+  
+  arg1 = *(ustore_kvdb::KVDB **)&_swig_go_0; 
+  
+  std::string arg2_str(_swig_go_1.p, _swig_go_1.n);
+  arg2 = &arg2_str;
+  
+  
+  std::string arg3_str(_swig_go_2.p, _swig_go_2.n);
+  arg3 = &arg3_str;
+  
+  
+  result = (ustore_kvdb::MapIterator *)(arg1)->NewMapIterator((std::string const &)*arg2,(std::string const &)*arg3);
+  *(ustore_kvdb::MapIterator **)&_swig_go_result = (ustore_kvdb::MapIterator *)result; 
+  return _swig_go_result;
+}
+
+
 long long _wrap_KVDB_GetSize_ustore_b40e736282a5577d(ustore_kvdb::KVDB *_swig_go_0) {
   ustore_kvdb::KVDB *arg1 = (ustore_kvdb::KVDB *) 0 ;
   size_t result;
@@ -1035,30 +1058,7 @@ std::pair< ustore_kvdb::Status,std::string > *_wrap_KVDB_PutBlob_ustore_b40e7362
 }
 
 
-std::pair< ustore_kvdb::Status,std::string > *_wrap_KVDB_GetLatestMap_ustore_b40e736282a5577d(ustore_kvdb::KVDB *_swig_go_0, _gostring_ _swig_go_1, _gostring_ _swig_go_2) {
-  ustore_kvdb::KVDB *arg1 = (ustore_kvdb::KVDB *) 0 ;
-  std::string *arg2 = 0 ;
-  std::string *arg3 = 0 ;
-  std::pair< ustore_kvdb::Status,std::string > result;
-  std::pair< ustore_kvdb::Status,std::string > *_swig_go_result;
-  
-  arg1 = *(ustore_kvdb::KVDB **)&_swig_go_0; 
-  
-  std::string arg2_str(_swig_go_1.p, _swig_go_1.n);
-  arg2 = &arg2_str;
-  
-  
-  std::string arg3_str(_swig_go_2.p, _swig_go_2.n);
-  arg3 = &arg3_str;
-  
-  
-  result = (arg1)->GetLatestMap((std::string const &)*arg2,(std::string const &)*arg3);
-  *(std::pair< ustore_kvdb::Status,std::string > **)&_swig_go_result = new std::pair< ustore_kvdb::Status,std::string >(result); 
-  return _swig_go_result;
-}
-
-
-std::pair< ustore_kvdb::Status,std::string > *_wrap_KVDB_GetMap_ustore_b40e736282a5577d(ustore_kvdb::KVDB *_swig_go_0, _gostring_ _swig_go_1, _gostring_ _swig_go_2) {
+std::pair< ustore_kvdb::Status,std::string > *_wrap_KVDB_GetMap__SWIG_0_ustore_b40e736282a5577d(ustore_kvdb::KVDB *_swig_go_0, _gostring_ _swig_go_1, _gostring_ _swig_go_2) {
   ustore_kvdb::KVDB *arg1 = (ustore_kvdb::KVDB *) 0 ;
   std::string *arg2 = 0 ;
   std::string *arg3 = 0 ;
@@ -1076,6 +1076,80 @@ std::pair< ustore_kvdb::Status,std::string > *_wrap_KVDB_GetMap_ustore_b40e73628
   
   
   result = (arg1)->GetMap((std::string const &)*arg2,(std::string const &)*arg3);
+  *(std::pair< ustore_kvdb::Status,std::string > **)&_swig_go_result = new std::pair< ustore_kvdb::Status,std::string >(result); 
+  return _swig_go_result;
+}
+
+
+std::pair< ustore_kvdb::Status,std::string > *_wrap_KVDB_GetMap__SWIG_1_ustore_b40e736282a5577d(ustore_kvdb::KVDB *_swig_go_0, _gostring_ _swig_go_1, _gostring_ _swig_go_2, _gostring_ _swig_go_3) {
+  ustore_kvdb::KVDB *arg1 = (ustore_kvdb::KVDB *) 0 ;
+  std::string *arg2 = 0 ;
+  std::string *arg3 = 0 ;
+  std::string *arg4 = 0 ;
+  std::pair< ustore_kvdb::Status,std::string > result;
+  std::pair< ustore_kvdb::Status,std::string > *_swig_go_result;
+  
+  arg1 = *(ustore_kvdb::KVDB **)&_swig_go_0; 
+  
+  std::string arg2_str(_swig_go_1.p, _swig_go_1.n);
+  arg2 = &arg2_str;
+  
+  
+  std::string arg3_str(_swig_go_2.p, _swig_go_2.n);
+  arg3 = &arg3_str;
+  
+  
+  std::string arg4_str(_swig_go_3.p, _swig_go_3.n);
+  arg4 = &arg4_str;
+  
+  
+  result = (arg1)->GetMap((std::string const &)*arg2,(std::string const &)*arg3,(std::string const &)*arg4);
+  *(std::pair< ustore_kvdb::Status,std::string > **)&_swig_go_result = new std::pair< ustore_kvdb::Status,std::string >(result); 
+  return _swig_go_result;
+}
+
+
+std::pair< ustore_kvdb::Status,ustore_kvdb::MapIterator * > *_wrap_KVDB_GetMapIterator_ustore_b40e736282a5577d(ustore_kvdb::KVDB *_swig_go_0, _gostring_ _swig_go_1, _gostring_ _swig_go_2) {
+  ustore_kvdb::KVDB *arg1 = (ustore_kvdb::KVDB *) 0 ;
+  std::string *arg2 = 0 ;
+  std::string *arg3 = 0 ;
+  SwigValueWrapper< std::pair< ustore_kvdb::Status,ustore_kvdb::MapIterator * > > result;
+  std::pair< ustore_kvdb::Status,ustore_kvdb::MapIterator * > *_swig_go_result;
+  
+  arg1 = *(ustore_kvdb::KVDB **)&_swig_go_0; 
+  
+  std::string arg2_str(_swig_go_1.p, _swig_go_1.n);
+  arg2 = &arg2_str;
+  
+  
+  std::string arg3_str(_swig_go_2.p, _swig_go_2.n);
+  arg3 = &arg3_str;
+  
+  
+  result = (arg1)->GetMapIterator((std::string const &)*arg2,(std::string const &)*arg3);
+  *(std::pair< ustore_kvdb::Status,ustore_kvdb::MapIterator * > **)&_swig_go_result = new std::pair< ustore_kvdb::Status,ustore_kvdb::MapIterator * >(result); 
+  return _swig_go_result;
+}
+
+
+std::pair< ustore_kvdb::Status,std::string > *_wrap_KVDB_GetPreviousVersion_ustore_b40e736282a5577d(ustore_kvdb::KVDB *_swig_go_0, _gostring_ _swig_go_1, _gostring_ _swig_go_2) {
+  ustore_kvdb::KVDB *arg1 = (ustore_kvdb::KVDB *) 0 ;
+  std::string *arg2 = 0 ;
+  std::string *arg3 = 0 ;
+  std::pair< ustore_kvdb::Status,std::string > result;
+  std::pair< ustore_kvdb::Status,std::string > *_swig_go_result;
+  
+  arg1 = *(ustore_kvdb::KVDB **)&_swig_go_0; 
+  
+  std::string arg2_str(_swig_go_1.p, _swig_go_1.n);
+  arg2 = &arg2_str;
+  
+  
+  std::string arg3_str(_swig_go_2.p, _swig_go_2.n);
+  arg3 = &arg3_str;
+  
+  
+  result = (arg1)->GetPreviousVersion((std::string const &)*arg2,(std::string const &)*arg3);
   *(std::pair< ustore_kvdb::Status,std::string > **)&_swig_go_result = new std::pair< ustore_kvdb::Status,std::string >(result); 
   return _swig_go_result;
 }
@@ -1152,6 +1226,112 @@ void _wrap_delete_KVDB_ustore_b40e736282a5577d(ustore_kvdb::KVDB *_swig_go_0) {
   ustore_kvdb::KVDB *arg1 = (ustore_kvdb::KVDB *) 0 ;
   
   arg1 = *(ustore_kvdb::KVDB **)&_swig_go_0; 
+  
+  delete arg1;
+  
+}
+
+
+ustore_kvdb::MapIterator *_wrap_new_MapIterator__SWIG_0_ustore_b40e736282a5577d() {
+  ustore_kvdb::MapIterator *result = 0 ;
+  ustore_kvdb::MapIterator *_swig_go_result;
+  
+  
+  result = (ustore_kvdb::MapIterator *)new ustore_kvdb::MapIterator();
+  *(ustore_kvdb::MapIterator **)&_swig_go_result = (ustore_kvdb::MapIterator *)result; 
+  return _swig_go_result;
+}
+
+
+ustore_kvdb::MapIterator *_wrap_new_MapIterator__SWIG_1_ustore_b40e736282a5577d(ustore::ObjectDB *_swig_go_0, _gostring_ _swig_go_1, _gostring_ _swig_go_2) {
+  ustore::ObjectDB *arg1 = (ustore::ObjectDB *) 0 ;
+  std::string *arg2 = 0 ;
+  std::string *arg3 = 0 ;
+  ustore_kvdb::MapIterator *result = 0 ;
+  ustore_kvdb::MapIterator *_swig_go_result;
+  
+  arg1 = *(ustore::ObjectDB **)&_swig_go_0; 
+  
+  std::string arg2_str(_swig_go_1.p, _swig_go_1.n);
+  arg2 = &arg2_str;
+  
+  
+  std::string arg3_str(_swig_go_2.p, _swig_go_2.n);
+  arg3 = &arg3_str;
+  
+  
+  result = (ustore_kvdb::MapIterator *)new ustore_kvdb::MapIterator(arg1,(std::string const &)*arg2,(std::string const &)*arg3);
+  *(ustore_kvdb::MapIterator **)&_swig_go_result = (ustore_kvdb::MapIterator *)result; 
+  return _swig_go_result;
+}
+
+
+void _wrap_MapIterator_SeekToFirst_ustore_b40e736282a5577d(ustore_kvdb::MapIterator *_swig_go_0) {
+  ustore_kvdb::MapIterator *arg1 = (ustore_kvdb::MapIterator *) 0 ;
+  
+  arg1 = *(ustore_kvdb::MapIterator **)&_swig_go_0; 
+  
+  (arg1)->SeekToFirst();
+  
+}
+
+
+bool _wrap_MapIterator_Valid_ustore_b40e736282a5577d(ustore_kvdb::MapIterator *_swig_go_0) {
+  ustore_kvdb::MapIterator *arg1 = (ustore_kvdb::MapIterator *) 0 ;
+  bool result;
+  bool _swig_go_result;
+  
+  arg1 = *(ustore_kvdb::MapIterator **)&_swig_go_0; 
+  
+  result = (bool)(arg1)->Valid();
+  _swig_go_result = result; 
+  return _swig_go_result;
+}
+
+
+bool _wrap_MapIterator_Next_ustore_b40e736282a5577d(ustore_kvdb::MapIterator *_swig_go_0) {
+  ustore_kvdb::MapIterator *arg1 = (ustore_kvdb::MapIterator *) 0 ;
+  bool result;
+  bool _swig_go_result;
+  
+  arg1 = *(ustore_kvdb::MapIterator **)&_swig_go_0; 
+  
+  result = (bool)(arg1)->Next();
+  _swig_go_result = result; 
+  return _swig_go_result;
+}
+
+
+_gostring_ _wrap_MapIterator_key_ustore_b40e736282a5577d(ustore_kvdb::MapIterator *_swig_go_0) {
+  ustore_kvdb::MapIterator *arg1 = (ustore_kvdb::MapIterator *) 0 ;
+  std::string result;
+  _gostring_ _swig_go_result;
+  
+  arg1 = *(ustore_kvdb::MapIterator **)&_swig_go_0; 
+  
+  result = ((ustore_kvdb::MapIterator const *)arg1)->key();
+  _swig_go_result = Swig_AllocateString((&result)->data(), (&result)->length()); 
+  return _swig_go_result;
+}
+
+
+_gostring_ _wrap_MapIterator_value_ustore_b40e736282a5577d(ustore_kvdb::MapIterator *_swig_go_0) {
+  ustore_kvdb::MapIterator *arg1 = (ustore_kvdb::MapIterator *) 0 ;
+  std::string result;
+  _gostring_ _swig_go_result;
+  
+  arg1 = *(ustore_kvdb::MapIterator **)&_swig_go_0; 
+  
+  result = ((ustore_kvdb::MapIterator const *)arg1)->value();
+  _swig_go_result = Swig_AllocateString((&result)->data(), (&result)->length()); 
+  return _swig_go_result;
+}
+
+
+void _wrap_delete_MapIterator_ustore_b40e736282a5577d(ustore_kvdb::MapIterator *_swig_go_0) {
+  ustore_kvdb::MapIterator *arg1 = (ustore_kvdb::MapIterator *) 0 ;
+  
+  arg1 = *(ustore_kvdb::MapIterator **)&_swig_go_0; 
   
   delete arg1;
   
