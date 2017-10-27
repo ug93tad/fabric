@@ -253,7 +253,6 @@ func (state *State) SetMultipleKeys(chaincodeID string, kvs map[string][]byte) e
 }
 
 func (state *State) GetUStoreHash() ([]byte, error) {
-  logger.Infof("Put map key ")
   if state.recomputeHash {
     ccIds := state.stateDelta.GetUpdatedChaincodeIds(true)
     for _,id := range(ccIds) {
@@ -264,7 +263,6 @@ func (state *State) GetUStoreHash() ([]byte, error) {
         k := statemgmt.ConstructCompositeKey(id, key)
         //k := []byte(key)
         version, _ := state.db.PutBlob(k, val.Value)
-        logger.Infof("Put map key size: %v", len(key))
         state.db.PutMap(k, version)
       }
       state.db.SyncMap()

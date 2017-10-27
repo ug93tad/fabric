@@ -407,21 +407,30 @@ func TestKVDB_MapOps(t *testing.T) {
   for ; iterator.Valid(); iterator.Next() {
     correct(iterator.Key(), keys[idx], t)
     correct(iterator.Value(), vals[idx], t)
-    for i:=0; i<10; i++ {
-      x1 := iterator.Key()
-      x2 := iterator.Value()
-      fmt.Printf("x1: %x, x2: %x\n", x1, x2)
-    }
     idx++
   }
 
-  // test GetMap
+    // test GetMap
   v := check_result(kvdb.GetMap("batch1", keys[2]), t)
   v1 := check_result(kvdb.GetMap("batch1", keys[2], batch1Version), t)
   v3 := check_result(kvdb.GetPreviousVersion("batch1", batch2Version), t)
   correct(v, vals[0], t)
   correct(v1, vals[2], t)
   correct(v3, batch1Version, t)
+  v4 := kvdb.GetPreviousVersion("batch1", batch1Version).GetSecond()
+  v5 := kvdb.GetPreviousVersion("batch1", v4)
+
+  if v5.GetFirst().Ok() {
+    t.Errorf("Failed, v5 is the end.")
+  }
+  fmt.Printf("Get previous batch1Version: %x", v4)
+  fmt.Printf("Get previous again: %v, len: %v", v5.GetSecond(), len(v5.GetSecond()))
+  vx := kvdb.PutBlob(keys[0], vals[0]).GetSecond()
+  vy := kvdb.GetPreviousVersion(keys[0], vx)
+  if vy.GetFirst().Ok() {
+    t.Errorf("Failed, vy is the end.")
+  }
+
 }
 
 func TestKVDB_BlobOps(t *testing.T) {

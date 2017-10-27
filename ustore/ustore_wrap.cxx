@@ -1348,6 +1348,19 @@ void _wrap_delete_Iterator_ustore_b40e736282a5577d(ustore_kvdb::Iterator *_swig_
 }
 
 
+intgo _wrap_Iterator_GetTime_ustore_b40e736282a5577d(ustore_kvdb::Iterator *_swig_go_0) {
+  ustore_kvdb::Iterator *arg1 = (ustore_kvdb::Iterator *) 0 ;
+  int result;
+  intgo _swig_go_result;
+  
+  arg1 = *(ustore_kvdb::Iterator **)&_swig_go_0; 
+  
+  result = (int)(arg1)->GetTime();
+  _swig_go_result = result; 
+  return _swig_go_result;
+}
+
+
 void _wrap_Iterator_Release_ustore_b40e736282a5577d(ustore_kvdb::Iterator *_swig_go_0) {
   ustore_kvdb::Iterator *arg1 = (ustore_kvdb::Iterator *) 0 ;
   
@@ -1459,7 +1472,7 @@ _gostring_ _wrap_Iterator_key_ustore_b40e736282a5577d(ustore_kvdb::Iterator *_sw
   
   arg1 = *(ustore_kvdb::Iterator **)&_swig_go_0; 
   
-  result = ((ustore_kvdb::Iterator const *)arg1)->key();
+  result = (arg1)->key();
   _swig_go_result = Swig_AllocateString((&result)->data(), (&result)->length()); 
   return _swig_go_result;
 }
@@ -1472,7 +1485,7 @@ _gostring_ _wrap_Iterator_value_ustore_b40e736282a5577d(ustore_kvdb::Iterator *_
   
   arg1 = *(ustore_kvdb::Iterator **)&_swig_go_0; 
   
-  result = ((ustore_kvdb::Iterator const *)arg1)->value();
+  result = (arg1)->value();
   _swig_go_result = Swig_AllocateString((&result)->data(), (&result)->length()); 
   return _swig_go_result;
 }

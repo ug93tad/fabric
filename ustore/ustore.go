@@ -156,6 +156,7 @@ extern swig_type_53 _wrap_MapIterator_key_ustore_b40e736282a5577d(uintptr_t arg1
 extern swig_type_54 _wrap_MapIterator_value_ustore_b40e736282a5577d(uintptr_t arg1);
 extern void _wrap_delete_MapIterator_ustore_b40e736282a5577d(uintptr_t arg1);
 extern void _wrap_delete_Iterator_ustore_b40e736282a5577d(uintptr_t arg1);
+extern swig_intgo _wrap_Iterator_GetTime_ustore_b40e736282a5577d(uintptr_t arg1);
 extern void _wrap_Iterator_Release_ustore_b40e736282a5577d(uintptr_t arg1);
 extern void _wrap_Iterator_SetRange_ustore_b40e736282a5577d(uintptr_t arg1, swig_type_55 arg2, swig_type_56 arg3);
 extern _Bool _wrap_Iterator_Valid_ustore_b40e736282a5577d(uintptr_t arg1);
@@ -1082,6 +1083,13 @@ func DeleteIterator(arg1 Iterator) {
 	C._wrap_delete_Iterator_ustore_b40e736282a5577d(C.uintptr_t(_swig_i_0))
 }
 
+func (arg1 SwigcptrIterator) GetTime() (_swig_ret int) {
+	var swig_r int
+	_swig_i_0 := arg1
+	swig_r = (int)(C._wrap_Iterator_GetTime_ustore_b40e736282a5577d(C.uintptr_t(_swig_i_0)))
+	return swig_r
+}
+
 func (arg1 SwigcptrIterator) Release() {
 	_swig_i_0 := arg1
 	C._wrap_Iterator_Release_ustore_b40e736282a5577d(C.uintptr_t(_swig_i_0))
@@ -1163,6 +1171,7 @@ func (arg1 SwigcptrIterator) Value() (_swig_ret string) {
 type Iterator interface {
 	Swigcptr() uintptr
 	SwigIsIterator()
+	GetTime() (_swig_ret int)
 	Release()
 	SetRange(arg2 string, arg3 string)
 	Valid() (_swig_ret bool)
