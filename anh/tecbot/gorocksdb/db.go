@@ -650,13 +650,15 @@ func (db *DB) Flush(opts *FlushOptions) error {
 
 // DisableFileDeletions disables file deletions and should be used when backup the database.
 func (db *DB) DisableFileDeletions() error {
-  notSupported(db.opts)
+  //notSupported(db.opts)
+  if dbtype != UStoreDB {
 	var cErr *C.char
 	C.rocksdb_disable_file_deletions(db.c, &cErr)
 	if cErr != nil {
 		defer C.free(unsafe.Pointer(cErr))
 		return errors.New(C.GoString(cErr))
 	}
+  }
 	return nil
 }
 
