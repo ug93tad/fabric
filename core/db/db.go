@@ -208,7 +208,7 @@ func (openchainDB *OpenchainDB) open() {
 	}
 
 	db, cfHandlers, err := gorocksdb.OpenDbColumnFamilies(opts, dbPath, cfNames, cfOpts)
-  db.DisableFileDeletions()
+//  db.DisableFileDeletions()
 	if err != nil {
 		panic(fmt.Sprintf("Error opening DB: %s", err))
 	}
