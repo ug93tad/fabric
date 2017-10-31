@@ -480,10 +480,10 @@ func (handler *Handler) handleGetState(key string, txid string) ([]byte, error) 
 // handlePutState communicates with the validator to put state information into the ledger.
 func (handler *Handler) handlePutState(key string, value []byte, txid string) error {
 	// Check if this is a transaction
-	chaincodeLogger.Debugf("[%s]Inside putstate, isTransaction = %t", shorttxid(txid), handler.isTransaction[txid])
-	if !handler.isTransaction[txid] {
-		return errors.New("Cannot put state in query context")
-	}
+//	chaincodeLogger.Debugf("[%s]Inside putstate, isTransaction = %t", shorttxid(txid), handler.isTransaction[txid])
+//	if !handler.isTransaction[txid] {
+//		return errors.New("Cannot put state in query context")
+//	}
 
 	payload := &pb.PutStateInfo{Key: key, Value: value}
 	payloadBytes, err := proto.Marshal(payload)
