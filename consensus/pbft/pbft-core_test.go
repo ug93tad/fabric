@@ -399,14 +399,7 @@ func TestLostPrePrepare(t *testing.T) {
 	}
 }
 
-// in this test, there are conflicting pre-prepare messages
-// from the primary, simulating the case when the primary is
-// equivocating. Without SGX, this is prevented by 2f+1 quorum.
-// With SGX, it never happens due to signature from the hardware.
 func TestInconsistentPrePrepare(t *testing.T) {
-  if  is_sgx_on() {
-    return
-  }
 	validatorCount := 4
 	net := makePBFTNetwork(validatorCount, nil)
 	defer net.stop()
@@ -432,6 +425,7 @@ func TestInconsistentPrePrepare(t *testing.T) {
 	net.pbftEndpoints[1].manager.Queue() <- makePP(1)
 	net.pbftEndpoints[2].manager.Queue() <- makePP(2)
 	net.pbftEndpoints[3].manager.Queue() <- makePP(3)
+
 	net.process()
 
 	for n, pep := range net.pbftEndpoints {
@@ -568,9 +562,6 @@ func TestViewChangeCheckpointSelection(t *testing.T) {
 func TestViewChange(t *testing.T) {
 	validatorCount := 4
 	config := loadConfig()
-  if config.GetBool("general.sgx") {
-    validatorCount = 3
-  }
 	config.Set("general.K", 2)
 	config.Set("general.logmultiplier", 2)
 	net := makePBFTNetwork(validatorCount, config)
@@ -585,11 +576,7 @@ func TestViewChange(t *testing.T) {
 	execReqBatch(2)
 	execReqBatch(3)
 
-  start_idx := 2
-  if config.GetBool("general.sgx") {
-    start_idx = 1
-  }
-	for i := start_idx; i < len(net.pbftEndpoints); i++ {
+	for i := 2; i < len(net.pbftEndpoints); i++ {
 		net.pbftEndpoints[i].pbft.sendViewChange()
 	}
 
@@ -615,11 +602,6 @@ func TestViewChange(t *testing.T) {
 }
 
 func TestInconsistentDataViewChange(t *testing.T) {
-  if is_sgx_on() {
-    // do nothing here, because inconsistent prepare, etc. messages
-    // are not allowed due to SGX
-    return
-  }
 	validatorCount := 4
 	net := makePBFTNetwork(validatorCount, nil)
 	defer net.stop()
@@ -645,6 +627,7 @@ func TestInconsistentDataViewChange(t *testing.T) {
 	net.pbftEndpoints[1].manager.Queue() <- makePP(1)
 	net.pbftEndpoints[2].manager.Queue() <- makePP(1)
 	net.pbftEndpoints[3].manager.Queue() <- makePP(0)
+
 	err := net.process()
 	if err != nil {
 		t.Fatalf("Processing failed: %s", err)
@@ -733,9 +716,6 @@ func TestViewChangeWithStateTransfer(t *testing.T) {
 func TestNewViewTimeout(t *testing.T) {
 	millisUntilTimeout := time.Duration(800)
 	validatorCount := 4
-  if is_sgx_on() {
-    validatorCount = 3
-  }
 	config := loadConfig()
 	config.Set("general.timeout.request", "400ms")
 	config.Set("general.timeout.viewchange", "800ms")
@@ -760,17 +740,14 @@ func TestNewViewTimeout(t *testing.T) {
 	fmt.Println("Debug: Sleeping 1")
 	time.Sleep(5 * millisUntilTimeout * time.Millisecond)
 	fmt.Println("Debug: Waking 1")
+
 	// This will eventually trigger 3's request timeout, which will lead to a view change to 1.
 	// However, we disable 1, which will disable the new-view going through.
 	// This checks that replicas will automatically move to view 2 when the view change times out.
 	// However, 2 does not know about the missing request, and therefore the request will not be
 	// pre-prepared and finally executed.
 	replica1Disabled = true
-  if !is_sgx_on() {
-	  net.pbftEndpoints[3].manager.Queue() <- reqBatch
-  } else {
-    net.pbftEndpoints[2].manager.Queue() <- reqBatch
-  }
+	net.pbftEndpoints[3].manager.Queue() <- reqBatch
 	fmt.Println("Debug: Sleeping 2")
 	time.Sleep(5 * millisUntilTimeout * time.Millisecond)
 	fmt.Println("Debug: Waking 2")
@@ -1134,9 +1111,6 @@ func TestReplicaCrash2(t *testing.T) {
 // triggered to get vp3 up to speed
 func TestReplicaCrash3(t *testing.T) {
 	validatorCount := 4
-  if is_sgx_on() {
-    validatorCount = 3
-  }
 	config := loadConfig()
 	config.Set("general.K", 2)
 	config.Set("general.logmultiplier", 2)
@@ -1146,12 +1120,10 @@ func TestReplicaCrash3(t *testing.T) {
 	twoOffline := false
 	threeOffline := true
 	net.filterFn = func(src int, dst int, msg []byte) []byte {
-		if twoOffline && ((is_sgx_on() && dst == 1) ||
-       (!is_sgx_on() && dst == 2)) { // 2 is 'offline'
+		if twoOffline && dst == 2 { // 2 is 'offline'
 			return nil
 		}
-		if threeOffline && ((is_sgx_on() && dst == 2) ||
-        (!is_sgx_on() && dst == 3)) { // 3 is 'offline'
+		if threeOffline && dst == 3 { // 3 is 'offline'
 			return nil
 		}
 		return msg
@@ -1161,9 +1133,9 @@ func TestReplicaCrash3(t *testing.T) {
 		net.pbftEndpoints[0].manager.Queue() <- createPbftReqBatch(i, uint64(generateBroadcaster(validatorCount)))
 	}
 	net.process() // vp0,1,2 should have a stable checkpoint for seqNo 8
+
 	// Create new pbft instances to restore from persistence
-  logger.Debugf("RESTART replica 0")
-	for id := 0; (!is_sgx_on() && id < 2) || (is_sgx_on() && id < 1); id++ {
+	for id := 0; id < 2; id++ {
 		pe := net.pbftEndpoints[id]
 		config := loadConfig()
 		config.Set("general.K", "2")
@@ -1172,10 +1144,6 @@ func TestReplicaCrash3(t *testing.T) {
 		pe.manager.SetReceiver(pe.pbft)
 		pe.pbft.N = 4
 		pe.pbft.f = (4 - 1) / 3
-    if (is_sgx_on()) {
-      pe.pbft.N = 3
-      pe.pbft.f = 1
-    }
 		pe.pbft.requestTimeout = 200 * time.Millisecond
 	}
 
@@ -1186,10 +1154,11 @@ func TestReplicaCrash3(t *testing.T) {
 
 	net.pbftEndpoints[0].manager.Queue() <- createPbftReqBatch(9, uint64(generateBroadcaster(validatorCount)))
 	net.process()
+
 	// Now vp0,1,3 should be in sync with 9 executions in view 1, and vp2 should be at 8 executions in view 0
 	for i, pep := range net.pbftEndpoints {
 
-		if (!is_sgx_on() && i == 2) || (is_sgx_on() && i==1) {
+		if i == 2 {
 			// 2 is 'offline'
 			if pep.pbft.view != 0 {
 				t.Errorf("Expected replica %d to be in view 0, got %d", pep.id, pep.pbft.view)
@@ -1201,9 +1170,8 @@ func TestReplicaCrash3(t *testing.T) {
 			continue
 		}
 
-		if (!is_sgx_on() && pep.pbft.view != 1) || 
-      (is_sgx_on() && pep.pbft.view != 3) {
-			t.Errorf("Expected replica %d to be in view 1 (or 3 with sgx), got %d", pep.id, pep.pbft.view)
+		if pep.pbft.view != 1 {
+			t.Errorf("Expected replica %d to be in view 1, got %d", pep.id, pep.pbft.view)
 		}
 
 		expectedExecutions := uint64(9)
@@ -1219,9 +1187,6 @@ func TestReplicaCrash3(t *testing.T) {
 // be zero
 func TestReplicaCrash4(t *testing.T) {
 	validatorCount := 4
-  if is_sgx_on() {
-    validatorCount = 3
-  }
 	config := loadConfig()
 	config.Set("general.K", 2)
 	config.Set("general.logmultiplier", 2)
@@ -1231,12 +1196,10 @@ func TestReplicaCrash4(t *testing.T) {
 	twoOffline := false
 	threeOffline := true
 	net.filterFn = func(src int, dst int, msg []byte) []byte {
-		if (!is_sgx_on() && twoOffline && dst == 2) || 
-      (is_sgx_on() && twoOffline && dst == 1) { // 2 is 'offline'
+		if twoOffline && dst == 2 { // 2 is 'offline'
 			return nil
 		}
-		if (!is_sgx_on() && threeOffline && dst == 3) || 
-      (is_sgx_on() && threeOffline && dst == 2) { // 3 is 'offline'
+		if threeOffline && dst == 3 { // 3 is 'offline'
 			return nil
 		}
 		return msg
@@ -1251,7 +1214,7 @@ func TestReplicaCrash4(t *testing.T) {
 	// Now vp0,1,2 should be in sync with 8 executions in view 0, and vp4 should be offline
 	for i, pep := range net.pbftEndpoints {
 
-		if (!is_sgx_on() && i == 3) || (is_sgx_on() && i == 2) {
+		if i == 3 {
 			// 3 is offline for this test
 			continue
 		}
@@ -1267,7 +1230,7 @@ func TestReplicaCrash4(t *testing.T) {
 	}
 
 	// Create new pbft instances to restore from persistence
-	for id := 0; (!is_sgx_on() && id < 3) || (is_sgx_on() && id < 2); id++ {
+	for id := 0; id < 3; id++ {
 		pe := net.pbftEndpoints[id]
 		config := loadConfig()
 		config.Set("general.K", "2")
@@ -1276,10 +1239,6 @@ func TestReplicaCrash4(t *testing.T) {
 		pe.manager.SetReceiver(pe.pbft)
 		pe.pbft.N = 4
 		pe.pbft.f = (4 - 1) / 3
-    if is_sgx_on() {
-      pe.pbft.N = 3
-      pe.pbft.f = 1
-    }
 		pe.pbft.requestTimeout = 200 * time.Millisecond
 
 		expected := uint64(8)

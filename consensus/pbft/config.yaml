@@ -12,11 +12,11 @@ general:
     # Operational mode: currently only batch ( this value is case-insensitive)
     mode: batch
 
-    sgx: true 
+    sgx: false 
 
     # Maximum number of validators/replicas we expect in the network
     # Keep the "N" in quotes, or it will be interpreted as "false".
-    "N": 3
+    "N": 4
 
     # Number of byzantine nodes we will tolerate
     f: 1

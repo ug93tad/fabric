@@ -17,15 +17,17 @@ limitations under the License.
 package executor
 
 import (
+  "strconv"
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric/consensus"
 	"github.com/hyperledger/fabric/consensus/pbft"
-	"github.com/hyperledger/fabric/consensus/util"
+	"github.com/hyperledger/fabric/core/util"
 	"github.com/hyperledger/fabric/consensus/util/events"
 	"github.com/hyperledger/fabric/core/peer/statetransfer"
 	pb "github.com/hyperledger/fabric/protos"
 
 	"github.com/op/go-logging"
+  "github.com/spf13/viper"
 )
 
 var logger *logging.Logger // package-level logger
@@ -47,6 +49,7 @@ type coordinatorImpl struct {
 	stc             statetransfer.Coordinator   // State transfer instance
 	batchInProgress bool                        // Are we mid execution batch
 	skipInProgress  bool                        // Are we mid state transfer
+  statUtil        *util.StatUtil
 }
 
 // NewCoordinatorImpl creates a new executor.Coordinator
@@ -58,6 +61,14 @@ func NewImpl(consumer consensus.ExecutionConsumer, rawExecutor PartialStack, stp
 		manager:     events.NewManagerImpl(),
 	}
 	co.manager.SetReceiver(co)
+  config := viper.New()
+  config.SetEnvPrefix("core_execution")
+  config.AutomaticEnv()
+  interval := uint32(config.GetInt("sample_interval"))
+  co.statUtil = util.GetStatUtil()
+  co.statUtil.NewStat("execute", interval)
+  co.statUtil.NewStat("commitqueue", interval)
+  co.statUtil.NewStat("commit", interval)
 	return co
 }
 
@@ -77,23 +88,21 @@ func (co *coordinatorImpl) ProcessEvent(event events.Event) events.Event {
 			err := co.rawExecutor.BeginTxBatch(co)
 			_ = err // TODO This should probably panic, see issue 752
 		}
-    
-		stat := util.GetStat()
 		meta := &pbft.Metadata{}
     if _, ok := et.tag.([]byte); ok {
 		  proto.Unmarshal(et.tag.([]byte), meta)
-		  if lt, ok := stat.GetExecutionQueueTime(meta.SeqNo); ok {
+		  if lt, ok := co.statUtil.Stats["executionqueue"].End(strconv.FormatUint(meta.SeqNo,10)); ok {
 			  logger.Infof("Execution queue time: %v", lt)
 		  }
-		  stat.StartBatchExecute(meta.SeqNo)
+		  co.statUtil.Stats["execute"].Start(strconv.FormatUint(meta.SeqNo,10))
     }
 		co.rawExecutor.ExecTxs(co, et.txs)
 
-		if lt, ok := stat.GetBatchExecuteTime(meta.SeqNo); ok {
-			logger.Infof("Batch execution time: %v", lt)
+		if lt, ok := co.statUtil.Stats["execute"].End(strconv.FormatUint(meta.SeqNo,10)); ok {
+			logger.Infof("Batch execution time (seqNo %v): %v, #tx: %v", meta.SeqNo, lt, len(et.txs))
 		}
 
-		stat.StartCommitQueue(meta.SeqNo)
+		co.statUtil.Stats["commitqueue"].Start(strconv.FormatUint(meta.SeqNo,10))
 		co.consumer.Executed(et.tag)
 	case commitEvent:
 		logger.Debug("Executor is processing an commitEvent")
@@ -106,13 +115,12 @@ func (co *coordinatorImpl) ProcessEvent(event events.Event) events.Event {
 			logger.Error("Likely FATAL programming error, attemted to commit a transaction batch when one does not exist")
 			return nil
 		}
-		stat := util.GetStat()
 		meta := &pbft.Metadata{}
 		proto.Unmarshal(et.metadata, meta)
-		if lt, ok := stat.GetCommitQueueTime(meta.SeqNo); ok {
+		if lt, ok := co.statUtil.Stats["commitqueue"].End(strconv.FormatUint(meta.SeqNo,10)); ok {
 			logger.Infof("Commit queue time: %v", lt)
 		}
-		stat.StartBatchCommit(meta.SeqNo)
+		co.statUtil.Stats["commit"].Start(strconv.FormatUint(meta.SeqNo,10))
 		_, err := co.rawExecutor.CommitTxBatch(co, et.metadata)
 		_ = err // TODO This should probably panic, see issue 752
 
@@ -123,8 +131,8 @@ func (co *coordinatorImpl) ProcessEvent(event events.Event) events.Event {
 		logger.Debugf("Committed block %d with hash %x to chain", info.Height-1, info.CurrentBlockHash)
 
 		co.consumer.Committed(et.tag, info)
-		if lt, ok := stat.GetBatchCommitTime(meta.SeqNo); ok {
-			logger.Infof("Batch commit time: %v", lt)
+		if lt, ok := co.statUtil.Stats["commit"].End(strconv.FormatUint(meta.SeqNo,10)); ok {
+			logger.Infof("Batch commit time (seqNo %v): %v", meta.SeqNo, lt)
 		}
 
 	case rollbackEvent:

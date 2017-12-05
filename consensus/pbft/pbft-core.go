@@ -23,10 +23,11 @@ import (
 	"sort"
 	"sync"
 	"time"
+  "strconv"
 
   "github.com/hyperledger/fabric/a2m"
 	"github.com/hyperledger/fabric/consensus"
-	"github.com/hyperledger/fabric/consensus/util"
+	"github.com/hyperledger/fabric/core/util"
 	"github.com/hyperledger/fabric/consensus/util/events"
 	_ "github.com/hyperledger/fabric/core" // Needed for logging format init
 	pb "github.com/hyperledger/fabric/protos"
@@ -176,6 +177,9 @@ type pbftCore struct {
 	checkpointStore map[Checkpoint]bool      // track checkpoints as set
 	viewChangeStore map[vcidx]*ViewChange    // track view-change messages
 	newViewStore    map[uint64]*NewView      // track last new-view we received or sent
+
+  // stat
+  statUtil            *util.StatUtil
 }
 
 type qidx struct {
@@ -324,6 +328,10 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
 	instance.viewChangeSeqNo = ^uint64(0) // infinity
 	instance.updateViewChangeSeqNo()
 
+
+  instance.statUtil = util.GetStatUtil()
+  instance.statUtil.NewStat("consensus", 0)
+  instance.statUtil.NewStat("executionqueue", 0)
 	return instance
 }
 
@@ -635,9 +643,10 @@ func (instance *pbftCore) recvMsg(msg *Message, senderID uint64) (interface{}, e
 
 func (instance *pbftCore) recvRequestBatch(reqBatch *RequestBatch) error {
 	digest := hash(reqBatch)
-	logger.Debugf("Replica %d received request batch %s", instance.id, digest)
+	logger.Debugf("Replica %d received request batch %s, size: %v", instance.id, digest, proto.Size(reqBatch))
 
 	instance.reqBatchStore[digest] = reqBatch
+
 	instance.outstandingReqBatches[digest] = reqBatch
 	instance.persistRequestBatch(digest)
 	if instance.activeView {
@@ -646,16 +655,17 @@ func (instance *pbftCore) recvRequestBatch(reqBatch *RequestBatch) error {
 	if instance.primary(instance.view) == instance.id && instance.activeView {
 		instance.nullRequestTimer.Stop()
 
-		stat := util.GetStat()
 		for _, req := range reqBatch.GetBatch() {
 			tx := &pb.Transaction{}
 			if err := proto.Unmarshal(req.Payload, tx); err == nil {
-				if lt, ok := stat.GetTxQueueTime(tx.Txid); ok {
-					logger.Infof("Tx queue time: %v", lt)
-				}
+        if s, ok := instance.statUtil.Stats["txqueue"]; ok {
+				  if lt, ok := s.End(tx.Txid); ok {
+					  logger.Infof("Tx queue time: %v", lt)
+				  }
+        }
 			}
 		}
-		stat.StartBatchConsensus(digest)
+		instance.statUtil.Stats["consensus"].Start(digest)
 		instance.sendPrePrepare(reqBatch, digest)
 	} else {
 		logger.Debugf("Replica %d is backup, not sending pre-prepare for request batch %s", instance.id, digest)
@@ -775,8 +785,7 @@ func (instance *pbftCore) recvPrePrepare(preprep *PrePrepare) error {
 	cert.prePrepare = preprep
 	cert.digest = preprep.BatchDigest
 
-	stat := util.GetStat()
-	stat.StartBatchConsensus(preprep.BatchDigest)
+  instance.statUtil.Stats["consensus"].Start(preprep.BatchDigest)
 	// Store the request batch if, for whatever reason, we haven't received it from an earlier broadcast
 	if _, ok := instance.reqBatchStore[preprep.BatchDigest]; !ok && preprep.BatchDigest != "" {
 		digest := hash(preprep.GetRequestBatch())
@@ -889,7 +898,7 @@ func (instance *pbftCore) recvCommit(commit *Commit) error {
 		instance.stopTimer()
 		instance.lastNewViewTimeout = instance.newViewTimeout
 
-		if lt, ok := util.GetStat().GetBatchConsensusTime(commit.BatchDigest); ok {
+		if lt, ok := instance.statUtil.Stats["consensus"].End(commit.BatchDigest); ok {
 			logger.Infof("Consensus latency: %v", lt)
 		}
 		delete(instance.outstandingReqBatches, commit.BatchDigest)
@@ -1002,7 +1011,7 @@ func (instance *pbftCore) executeOne(idx msgID) bool {
 	} else {
 		//logger.Infof("Replica %d executing/committing request batch for view=%d/seqNo=%d and digest %s",
 		//	instance.id, idx.v, idx.n, digest)
-		util.GetStat().StartExecutionQueue(idx.n)
+		instance.statUtil.Stats["executionqueue"].Start(strconv.FormatUint(idx.n, 10))
 		// synchronously execute, it is the other side's responsibility to execute in the background if needed
 		instance.consumer.execute(idx.n, reqBatch)
 	}
