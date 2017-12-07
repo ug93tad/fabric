@@ -147,6 +147,7 @@ type pbftCore struct {
 	qset          map[qidx]*ViewChange_PQ
 
   a2m           a2m.A2MInterface
+  a2mL          uint64
 	skipInProgress    bool               // Set when we have detected a fall behind scenario until we pick a new starting point
 	stateTransferring bool               // Set when state transfer is executing
 	highStateTarget   *stateUpdateTarget // Set to the highest weak checkpoint cert we have observed
@@ -175,6 +176,8 @@ type pbftCore struct {
 	reqBatchStore   map[string]*RequestBatch // track request batches
 	certStore       map[msgID]*msgCert       // track quorum certificates for requests
 	checkpointStore map[Checkpoint]bool      // track checkpoints as set
+  wantVCStore map[vcidx]*WantViewChange    // track want-view-change messages
+  wvcIndex    map[uint64]uint64            // track want-view-change messages indexed by replica
 	viewChangeStore map[vcidx]*ViewChange    // track view-change messages
 	newViewStore    map[uint64]*NewView      // track last new-view we received or sent
 
@@ -256,7 +259,11 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
 	instance.viewChangePeriod = uint64(config.GetInt("general.viewchangeperiod"))
 
 	instance.byzantine = config.GetBool("general.byzantine")
-	instance.sgx = config.GetBool("general.sgx")
+
+  if instance.sgx {
+    instance.a2m = a2m.CreateNewA2M()
+    instance.a2mL = uint64(10000)
+  }
 
 	instance.requestTimeout, err = time.ParseDuration(config.GetString("general.timeout.request"))
 	if err != nil {
@@ -310,6 +317,8 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
 	instance.checkpointStore = make(map[Checkpoint]bool)
 	instance.chkpts = make(map[uint64]string)
 	instance.viewChangeStore = make(map[vcidx]*ViewChange)
+  instance.wantVCStore = make(map[vcidx]*WantViewChange)
+  instance.wvcIndex = make(map[uint64]uint64)
 	instance.pset = make(map[uint64]*ViewChange_PQ)
 	instance.qset = make(map[qidx]*ViewChange_PQ)
 	instance.newViewStore = make(map[uint64]*NewView)
@@ -368,6 +377,8 @@ func (instance *pbftCore) ProcessEvent(e events.Event) events.Event {
 		err = instance.recvPrepare(et)
 	case *Commit:
 		err = instance.recvCommit(et)
+  case *WantViewChange:
+    return instance.recvWantViewChange(et)
 	case *Checkpoint:
 		return instance.recvCheckpoint(et)
 	case *ViewChange:
@@ -706,6 +717,10 @@ func (instance *pbftCore) sendPrePrepare(reqBatch *RequestBatch, digest string) 
 		RequestBatch:   reqBatch,
 		ReplicaId:      instance.id,
 	}
+  if instance.sgx {
+    att, _ := instance.a2m.Advance("prep", int(instance.view*instance.a2mL+n), make([]byte, 32), []byte("0"))
+    preprep.Attestation = att
+  }
 	cert := instance.getCert(instance.view, n)
 	cert.prePrepare = preprep
 	cert.digest = digest
@@ -747,6 +762,13 @@ outer:
 func (instance *pbftCore) recvPrePrepare(preprep *PrePrepare) error {
 	logger.Debugf("Replica %d received pre-prepare from replica %d for view=%d/seqNo=%d",
 		instance.id, preprep.ReplicaId, preprep.View, preprep.SequenceNumber)
+
+  if instance.sgx {
+    if ok, _ := instance.a2m.VerifyAttestation(preprep.Attestation); ok==0 {
+      logger.Warningf("Replica %d ignore pre-prepare: failed to verify attestation", instance.id)
+        return nil
+    }
+  }
 
 	if !instance.activeView {
 		logger.Debugf("Replica %d ignoring pre-prepare as we are in a view change", instance.id)
@@ -810,6 +832,10 @@ func (instance *pbftCore) recvPrePrepare(preprep *PrePrepare) error {
 			BatchDigest:    preprep.BatchDigest,
 			ReplicaId:      instance.id,
 		}
+    if instance.sgx {
+      att, _ := instance.a2m.Advance("prepare", int(preprep.View*instance.a2mL+ preprep.SequenceNumber), make([]byte, 32), []byte("0"))
+      prep.Attestation = att
+    }
 		cert.sentPrepare = true
 		instance.persistQSet()
 		instance.recvPrepare(prep)
@@ -822,6 +848,13 @@ func (instance *pbftCore) recvPrePrepare(preprep *PrePrepare) error {
 func (instance *pbftCore) recvPrepare(prep *Prepare) error {
 	logger.Debugf("Replica %d received prepare from replica %d for view=%d/seqNo=%d",
 		instance.id, prep.ReplicaId, prep.View, prep.SequenceNumber)
+
+  if instance.sgx {
+    if ok, _ := instance.a2m.VerifyAttestation(prep.Attestation); ok==0 {
+      logger.Warningf("Replica %d ignore prepare: failed to verify attestation", instance.id)
+        return nil
+    }
+  }
 
 	if instance.primary(prep.View) == prep.ReplicaId {
 		logger.Warningf("Replica %d received prepare from primary, ignoring", instance.id)
@@ -864,6 +897,10 @@ func (instance *pbftCore) maybeSendCommit(digest string, v uint64, n uint64) err
 			BatchDigest:    digest,
 			ReplicaId:      instance.id,
 		}
+    if instance.sgx {
+      att, _ := instance.a2m.Advance("commit", int(v*instance.a2mL+n), make([]byte, 32), []byte("0"))
+      commit.Attestation = att
+    }
 		cert.sentCommit = true
 		instance.recvCommit(commit)
 		return instance.innerBroadcast(&Message{&Message_Commit{commit}})
@@ -874,6 +911,13 @@ func (instance *pbftCore) maybeSendCommit(digest string, v uint64, n uint64) err
 func (instance *pbftCore) recvCommit(commit *Commit) error {
 	logger.Debugf("Replica %d received commit from replica %d for view=%d/seqNo=%d",
 		instance.id, commit.ReplicaId, commit.View, commit.SequenceNumber)
+
+  if instance.sgx {
+    if ok, _ := instance.a2m.VerifyAttestation(commit.Attestation); ok==0 {
+      logger.Warningf("Replica %d ignore commit: failed to verify attestation", instance.id)
+        return nil
+    }
+  }
 
 	if !instance.inWV(commit.View, commit.SequenceNumber) {
 		if commit.SequenceNumber != instance.h && !instance.skipInProgress {
@@ -904,7 +948,11 @@ func (instance *pbftCore) recvCommit(commit *Commit) error {
 		delete(instance.outstandingReqBatches, commit.BatchDigest)
 
 		instance.executeOutstanding()
+    if instance.sgx {
+      instance.a2m.Advance("exec", int(commit.View*instance.a2mL+commit.SequenceNumber), make([]byte, 32), []byte("0"))
+    }
 
+  
 		if commit.SequenceNumber == instance.viewChangeSeqNo {
 			logger.Infof("Replica %d cycling view for seqNo=%d", instance.id, commit.SequenceNumber)
 			instance.sendViewChange()

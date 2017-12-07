@@ -61,6 +61,7 @@ message pre_prepare {
     string batch_digest = 3;
     request_batch request_batch = 4;
     uint64 replica_id = 5;
+    bytes attestation = 6;
 }
 
 message prepare {
@@ -68,6 +69,7 @@ message prepare {
     uint64 sequence_number = 2;
     string batch_digest = 3;
     uint64 replica_id = 4;
+    bytes attestation = 5;
 }
 
 message commit {
@@ -75,6 +77,7 @@ message commit {
     uint64 sequence_number = 2;
     string batch_digest = 3;
     uint64 replica_id = 4;
+    bytes attestation = 6;
 }
 
 message block_info {
@@ -88,6 +91,11 @@ message checkpoint {
     string id = 3;
 }
 
+message want_view_change {
+    uint64 view = 1;
+    bytes nonce = 2;
+    uint64 id = 3;
+}
 message view_change {
     /* This message should go away and become a checkpoint once replica_id is removed */
     message C {

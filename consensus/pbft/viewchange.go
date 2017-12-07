@@ -183,6 +183,45 @@ func (instance *pbftCore) sendViewChange() events.Event {
 	return instance.recvViewChange(vc)
 }
 
+func (instance *pbftCore) recvWantViewChange(wvc *WantViewChange) events.Event {
+  logger.Infof("Replica %d received Want-View-Change from replica %d for view %d", instance.id, wvc.Id,
+  wvc.View)
+
+  // ignore if wanted view change is smaller than current view
+  if wvc.View < instance.view {
+    return nil
+  }
+
+  // delete old want-view-change from the replica
+  if v, ok := instance.wvcIndex[wvc.Id]; ok && v < wvc.View {
+    delete(instance.wantVCStore, vcidx{wvc.View, wvc.Id})
+  }
+
+  // add to the want-view-change store
+  instance.wantVCStore[vcidx{wvc.View, wvc.Id}] = wvc
+  instance.wvcIndex[wvc.Id] = wvc.View
+
+  // pick a view that has >= f+1 want-view-change messages
+  replicas := make(map[uint64][]bool)
+  view2Change := uint64(0)
+  for idx := range instance.wantVCStore {
+    if idx.v <= instance.view {
+      continue
+    }
+    replicas[idx.v] = append(replicas[idx.v], true)
+    if len(replicas[idx.v]) >= instance.f+1 {
+      view2Change = idx.v
+      break
+    }
+  }
+  if view2Change >0 {
+    instance.view = view2Change - 1
+    instance.sendViewChange()
+  }
+
+  return nil
+}
+
 func (instance *pbftCore) recvViewChange(vc *ViewChange) events.Event {
 	logger.Infof("Replica %d received view-change from replica %d, v:%d, h:%d, |C|:%d, |P|:%d, |Q|:%d",
 		instance.id, vc.ReplicaId, vc.View, vc.H, len(vc.Cset), len(vc.Pset), len(vc.Qset))

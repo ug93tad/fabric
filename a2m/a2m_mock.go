@@ -17,6 +17,7 @@ var (
 	lockA2MInterfaceMockStartA2M                 sync.RWMutex
 	lockA2MInterfaceMockTruncate                 sync.RWMutex
 	lockA2MInterfaceMockVerifyAttestation        sync.RWMutex
+	lockA2MInterfaceMockVerifyMessage            sync.RWMutex
 	lockA2MInterfaceMockVerifySkippedAttestation sync.RWMutex
 )
 
@@ -52,6 +53,9 @@ var (
 //             },
 //             VerifyAttestationFunc: func(attestation []byte) (int, error) {
 // 	               panic("TODO: mock out the VerifyAttestation method")
+//             },
+//             VerifyMessageFunc: func(message []byte, attestation []byte) (int, error) {
+// 	               panic("TODO: mock out the VerifyMessage method")
 //             },
 //             VerifySkippedAttestationFunc: func(attestation []byte) (int, error) {
 // 	               panic("TODO: mock out the VerifySkippedAttestation method")
@@ -89,6 +93,9 @@ type A2MInterfaceMock struct {
 
 	// VerifyAttestationFunc mocks the VerifyAttestation method.
 	VerifyAttestationFunc func(attestation []byte) (int, error)
+
+	// VerifyMessageFunc mocks the VerifyMessage method.
+	VerifyMessageFunc func(message []byte, attestation []byte) (int, error)
 
 	// VerifySkippedAttestationFunc mocks the VerifySkippedAttestation method.
 	VerifySkippedAttestationFunc func(attestation []byte) (int, error)
@@ -145,6 +152,13 @@ type A2MInterfaceMock struct {
 		}
 		// VerifyAttestation holds details about calls to the VerifyAttestation method.
 		VerifyAttestation []struct {
+			// Attestation is the attestation argument value.
+			Attestation []byte
+		}
+		// VerifyMessage holds details about calls to the VerifyMessage method.
+		VerifyMessage []struct {
+			// Message is the message argument value.
+			Message []byte
 			// Attestation is the attestation argument value.
 			Attestation []byte
 		}
@@ -446,6 +460,41 @@ func (mock *A2MInterfaceMock) VerifyAttestationCalls() []struct {
 	lockA2MInterfaceMockVerifyAttestation.RLock()
 	calls = mock.calls.VerifyAttestation
 	lockA2MInterfaceMockVerifyAttestation.RUnlock()
+	return calls
+}
+
+// VerifyMessage calls VerifyMessageFunc.
+func (mock *A2MInterfaceMock) VerifyMessage(message []byte, attestation []byte) (int, error) {
+	if mock.VerifyMessageFunc == nil {
+		panic("moq: A2MInterfaceMock.VerifyMessageFunc is nil but A2MInterface.VerifyMessage was just called")
+	}
+	callInfo := struct {
+		Message     []byte
+		Attestation []byte
+	}{
+		Message:     message,
+		Attestation: attestation,
+	}
+	lockA2MInterfaceMockVerifyMessage.Lock()
+	mock.calls.VerifyMessage = append(mock.calls.VerifyMessage, callInfo)
+	lockA2MInterfaceMockVerifyMessage.Unlock()
+	return mock.VerifyMessageFunc(message, attestation)
+}
+
+// VerifyMessageCalls gets all the calls that were made to VerifyMessage.
+// Check the length with:
+//     len(mockedA2MInterface.VerifyMessageCalls())
+func (mock *A2MInterfaceMock) VerifyMessageCalls() []struct {
+	Message     []byte
+	Attestation []byte
+} {
+	var calls []struct {
+		Message     []byte
+		Attestation []byte
+	}
+	lockA2MInterfaceMockVerifyMessage.RLock()
+	calls = mock.calls.VerifyMessage
+	lockA2MInterfaceMockVerifyMessage.RUnlock()
 	return calls
 }
 

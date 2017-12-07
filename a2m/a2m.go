@@ -10,6 +10,7 @@ type A2MInterface interface {
   Lookup(logname string, n int) ([]byte, error)
   End(logname string) ([]byte, error)
   Truncate(logname string, n int) error
+  VerifyMessage(message []byte, attestation []byte) (int, error)
   VerifyAttestation(attestation []byte) (int, error)
   VerifySkippedAttestation(attestation []byte) (int, error)
   GetMessage(attestation []byte) ([]byte, error)
@@ -44,11 +45,14 @@ func CreateNewA2M() A2MInterface {
   verifyAttestationFunc := func(attestation []byte) (int, error) {
     return 1, nil
   }
+  verifyMsgFunc := func(messsage []byte, attestation []byte) (int, error) {
+    return 1, nil
+  }
   verifySkippedAttestationFunc := func(attestation []byte) (int, error) {
     return 1, nil
   }
   return &A2MInterfaceMock{AdvanceFunc: advanceFunc, AppendFunc: appendFunc, GetMessageFunc: getMessageFunc,
                           LookupFunc: lookupFunc, StartA2MFunc: startA2MFunc,
                           VerifyAttestationFunc: verifyAttestationFunc,
-                          VerifySkippedAttestationFunc: verifySkippedAttestationFunc}
+                          VerifySkippedAttestationFunc: verifySkippedAttestationFunc, VerifyMessageFunc: verifyMsgFunc}
 }
