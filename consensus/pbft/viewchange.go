@@ -27,6 +27,8 @@ import (
 // viewChangeQuorumEvent is returned to the event loop when a new ViewChange message is received which is part of a quorum cert
 type viewChangeQuorumEvent struct{}
 
+type wantViewChangeQuorumEvent struct{}
+
 func (instance *pbftCore) correctViewChange(vc *ViewChange) bool {
 	for _, p := range append(vc.Pset, vc.Qset...) {
 		if !(p.View < vc.View && p.SequenceNumber > vc.H && p.SequenceNumber <= vc.H+instance.L) {
@@ -122,6 +124,25 @@ func (instance *pbftCore) calcQSet() map[qidx]*ViewChange_PQ {
 	return qset
 }
 
+func (instance *pbftCore) sendWantViewChange() events.Event {
+	wvc := &WantViewChange{
+		View:      instance.view+1,
+		Nonce:     make([]byte, 32),
+		Id:        instance.id,
+	}
+
+  // no need to sign
+	// instance.sign(vc)
+
+	logger.Infof("Replica %d sending want-view-change, v:%d", instance.id, vc.View)
+
+	instance.innerBroadcast(&Message{Payload: &Message_WantViewChange{WantViewChange: wvc}})
+
+	instance.wvcResendTimer.Reset(instance.wvcResendTimeout, wantViewChangeResendTimerEvent{})
+
+	return instance.recvWantViewChange(vc)
+}
+
 func (instance *pbftCore) sendViewChange() events.Event {
 	instance.stopTimer()
 
@@ -214,11 +235,19 @@ func (instance *pbftCore) recvWantViewChange(wvc *WantViewChange) events.Event {
       break
     }
   }
+
+  // got a quorum of Want-View-Change
   if view2Change >0 {
-    instance.view = view2Change - 1
+    // abandon from current view to view2Change
+    // add to Bset
+    for vt := instance.view; vt < view2Change; vt++ {
+      abandon_att, _ := instance.a2m.Advance("commit", int((vt+1)*instance.a2mL-1), make([]byte, 32), []byte("0"))
+      instance.bset[vt] = &ViewChange_B {View: vt, Attestation: abandon_att} 
+    }
+    // stop resend timer
+    instance.wvcResendTimer.Stop()
     instance.sendViewChange()
   }
-
   return nil
 }
 

@@ -76,6 +76,8 @@ type viewChangedEvent struct{}
 // viewChangeResendTimerEvent is sent when the view change resend timer expires
 type viewChangeResendTimerEvent struct{}
 
+type wantViewChangeResendTimerEvent struct{}
+
 // returnRequestBatchEvent is sent by pbft when we are forwarded a request
 type returnRequestBatchEvent *RequestBatch
 
@@ -145,6 +147,7 @@ type pbftCore struct {
 	chkpts        map[uint64]string // state checkpoints; map lastExec to global hash
 	pset          map[uint64]*ViewChange_PQ
 	qset          map[qidx]*ViewChange_PQ
+  bset          map[uint64]*ViewChange_B // Abandon for all view
 
   a2m           a2m.A2MInterface
   a2mL          uint64
@@ -156,9 +159,11 @@ type pbftCore struct {
 	currentExec           *uint64                  // currently executing request
 	timerActive           bool                     // is the timer running?
 	vcResendTimer         events.Timer             // timer triggering resend of a view change
+  wvcResendTimer        events.Timer
 	newViewTimer          events.Timer             // timeout triggering a view change
 	requestTimeout        time.Duration            // progress timeout for requests
 	vcResendTimeout       time.Duration            // timeout before resending view change
+  wvcResendTimeout      time.Duration            // timeout before resending want-view-change
 	newViewTimeout        time.Duration            // progress timeout for new views
 	newViewTimerReason    string                   // what triggered the timer
 	lastNewViewTimeout    time.Duration            // last timeout we used during this view change
@@ -233,6 +238,7 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
 
 	instance.newViewTimer = etf.CreateTimer()
 	instance.vcResendTimer = etf.CreateTimer()
+  instance.wvcResendTimer = etf.CreateTimer()
 	instance.nullRequestTimer = etf.CreateTimer()
 
 	instance.N = config.GetInt("general.N")
@@ -273,6 +279,9 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
 	if err != nil {
 		panic(fmt.Errorf("Cannot parse request timeout: %s", err))
 	}
+
+  instance.wvcResendTimeout = instance.vcResendTimeout
+
 	instance.newViewTimeout, err = time.ParseDuration(config.GetString("general.timeout.viewchange"))
 	if err != nil {
 		panic(fmt.Errorf("Cannot parse new view timeout: %s", err))
@@ -321,6 +330,7 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
   instance.wvcIndex = make(map[uint64]uint64)
 	instance.pset = make(map[uint64]*ViewChange_PQ)
 	instance.qset = make(map[qidx]*ViewChange_PQ)
+  instance.bset = make(map[uint64]*ViewChange_B)
 	instance.newViewStore = make(map[uint64]*NewView)
 
 	// initialize state transfer
@@ -357,8 +367,8 @@ func (instance *pbftCore) ProcessEvent(e events.Event) events.Event {
 	switch et := e.(type) {
 	case viewChangeTimerEvent:
 		logger.Infof("Replica %d view change timer expired, sending view change: %s", instance.id, instance.newViewTimerReason)
-		instance.timerActive = false
-		instance.sendViewChange()
+		//instance.sendViewChange()
+    instance.sendWantViewChange()
 	case *pbftMessage:
 		return pbftMessageEvent(*et)
 	case pbftMessageEvent:
@@ -443,6 +453,12 @@ func (instance *pbftCore) ProcessEvent(e events.Event) events.Event {
 		logger.Debugf("Replica %d view change resend timer expired before view change quorum was reached, resending", instance.id)
 		instance.view-- // sending the view change increments this
 		return instance.sendViewChange()
+  case wantVieChangeResendTimerEvent:
+    if instance.activeView {
+			return nil
+		}
+		logger.Debugf("Replica %d want view change resend timer expired before want view change quorum was reached, resending", instance.id)
+		return instance.sendWantViewChange()
 	default:
 		logger.Warningf("Replica %d received an unknown message type %T", instance.id, et)
 	}
