@@ -332,6 +332,7 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
   instance.statUtil = util.GetStatUtil()
   instance.statUtil.NewStat("consensus", 0)
   instance.statUtil.NewStat("executionqueue", 0)
+  instance.statUtil.NewStat("viewchange", 0)
 	return instance
 }
 
@@ -349,6 +350,7 @@ func (instance *pbftCore) ProcessEvent(e events.Event) events.Event {
 	case viewChangeTimerEvent:
 		logger.Infof("Replica %d view change timer expired, sending view change: %s", instance.id, instance.newViewTimerReason)
 		instance.timerActive = false
+    instance.statUtil.Stats["viewchange"].Start(strconv.FormatUint(instance.id, 10))
 		instance.sendViewChange()
 	case *pbftMessage:
 		return pbftMessageEvent(*et)
@@ -423,6 +425,9 @@ func (instance *pbftCore) ProcessEvent(e events.Event) events.Event {
 		}
 		return instance.processNewView()
 	case viewChangedEvent:
+    if lt, ok := instance.statUtil.Stats["viewchange"].End(strconv.FormatUint(instance.id, 10)); ok {
+      logger.Infof("Viewchange latency: %d", lt)
+    }
 		// No-op, processed by plugins if needed
 	case viewChangeResendTimerEvent:
 		if instance.activeView {
