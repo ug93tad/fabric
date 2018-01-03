@@ -115,21 +115,21 @@ func (instance *pbftCore) restoreState() {
 			if instance.view < e.View {
 				instance.view = e.View
 			}
-			if instance.seqNo < e.SequenceNumber {
-				instance.seqNo = e.SequenceNumber
+			if instance.seqNo < e.SeqNo {
+				instance.seqNo = e.SeqNo
 			}
 		}
 	}
 
 	set := instance.restorePQSet("pset")
 	for _, e := range set {
-		instance.pset[e.SequenceNumber] = e
+		instance.pset[e.SeqNo] = e
 	}
 	updateSeqView(set)
 
 	set = instance.restorePQSet("qset")
 	for _, e := range set {
-		instance.qset[qidx{e.BatchDigest, e.SequenceNumber}] = e
+		instance.qset[e.SeqNo] = e
 	}
 	updateSeqView(set)
 
@@ -161,6 +161,12 @@ func (instance *pbftCore) restoreState() {
 				idAsString := base64.StdEncoding.EncodeToString(id)
 				logger.Debugf("Replica %d found checkpoint %s for seqNo %d", instance.id, idAsString, seqNo)
 				instance.chkpts[seqNo] = idAsString
+        restored_chkpt := Checkpoint {
+                            SequenceNumber: seqNo,
+                            ReplicaId: instance.id, 
+                            Id: idAsString,
+                          }
+        instance.checkpointStore[restored_chkpt] = true
 				if seqNo < lowWatermark {
 					lowWatermark = seqNo
 				}

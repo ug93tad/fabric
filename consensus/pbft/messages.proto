@@ -98,19 +98,22 @@ message want_view_change {
     uint64 id = 3;
 }
 message view_change {
-    /* This message should go away and become a checkpoint once replica_id is removed */
     message C {
-        uint64 sequence_number = 1;
-        string id = 3;
+       checkpoint checkpoint = 1; 
     }
     message PQ {
-        uint64 sequence_number = 1;
-        string batch_digest = 2;
-        uint64 view = 3;
+      uint64 seqNo = 1;
+      repeated prepare prepare = 2;
+      repeated commit commit = 3;
+      bytes h = 4; // corresponding hist log
+      bytes a = 5; // corresponding comm log
+      string batch_digest = 6;
+      uint64 view = 7;
     }
-    message B {
+    message Att {
       uint64 view = 1;
-      bytes attestation = 2;
+      uint64 seqNo = 2;
+      bytes attestation = 3;
     }
 
     uint64 view = 1;
@@ -118,8 +121,12 @@ message view_change {
     repeated C cset = 3;
     repeated PQ pset = 4;
     repeated PQ qset = 5;
+    repeated Att bset = 8; // abandon view
+    repeated want_view_change wset = 11; // wset
     uint64 replica_id = 6;
     bytes signature = 7;
+    bytes attestation = 10;
+    uint64 old_view = 12;  // vfrom
 }
 
 message PQset {
@@ -131,6 +138,7 @@ message new_view {
     repeated view_change vset = 2;
     map<uint64, string> xset = 3;
     uint64 replica_id = 4;
+    bytes attestation = 5;
 }
 
 message fetch_request_batch {

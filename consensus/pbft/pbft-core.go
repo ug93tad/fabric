@@ -144,10 +144,12 @@ type pbftCore struct {
 	replicaCount  int               // number of replicas; PBFT `|R|`
 	seqNo         uint64            // PBFT "n", strictly monotonic increasing sequence number
 	view          uint64            // current view
+  oldView       uint64            // view when starting view change (may be less than current view -1)
 	chkpts        map[uint64]string // state checkpoints; map lastExec to global hash
 	pset          map[uint64]*ViewChange_PQ
-	qset          map[qidx]*ViewChange_PQ
-  bset          map[uint64]*ViewChange_B // Abandon for all view
+	qset          map[uint64]*ViewChange_PQ
+  bset          map[uint64]*ViewChange_Att // Abandon for all view
+  wset          map[*WantViewChange]bool // set of recent want view change
 
   a2m           a2m.A2MInterface
   a2mL          uint64
@@ -207,6 +209,13 @@ type msgCert struct {
 	prepare     []*Prepare
 	sentCommit  bool
 	commit      []*Commit
+  histAtt    *attestation
+  commAtt    *attestation
+}
+
+// attestation
+type attestation struct {
+  att     []byte
 }
 
 type vcidx struct {
@@ -266,10 +275,8 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
 
 	instance.byzantine = config.GetBool("general.byzantine")
 
-  if instance.sgx {
-    instance.a2m = a2m.CreateNewA2M()
-    instance.a2mL = uint64(10000)
-  }
+  instance.a2m = a2m.CreateNewA2M()
+  instance.a2mL = uint64(10000)
 
 	instance.requestTimeout, err = time.ParseDuration(config.GetString("general.timeout.request"))
 	if err != nil {
@@ -281,6 +288,7 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
 	}
 
   instance.wvcResendTimeout = instance.vcResendTimeout
+  logger.Infof("wvc resend timeout: %d", instance.wvcResendTimeout)
 
 	instance.newViewTimeout, err = time.ParseDuration(config.GetString("general.timeout.viewchange"))
 	if err != nil {
@@ -329,14 +337,21 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
   instance.wantVCStore = make(map[vcidx]*WantViewChange)
   instance.wvcIndex = make(map[uint64]uint64)
 	instance.pset = make(map[uint64]*ViewChange_PQ)
-	instance.qset = make(map[qidx]*ViewChange_PQ)
-  instance.bset = make(map[uint64]*ViewChange_B)
+	instance.qset = make(map[uint64]*ViewChange_PQ)
+  instance.bset = make(map[uint64]*ViewChange_Att)
+  instance.wset = make(map[*WantViewChange]bool)
 	instance.newViewStore = make(map[uint64]*NewView)
 
 	// initialize state transfer
 	instance.hChkpts = make(map[uint64]uint64)
 
 	instance.chkpts[0] = "XXX GENESIS"
+  initial_chkpt := Checkpoint {
+                      SequenceNumber: 0,
+                      ReplicaId: instance.id,
+                      Id: "XXX GENESIS",
+                    }
+  instance.checkpointStore[initial_chkpt] = true
 
 	instance.lastNewViewTimeout = instance.newViewTimeout
 	instance.outstandingReqBatches = make(map[string]*RequestBatch)
@@ -351,6 +366,7 @@ func newPbftCore(id uint64, config *viper.Viper, consumer innerStack, etf events
   instance.statUtil = util.GetStatUtil()
   instance.statUtil.NewStat("consensus", 0)
   instance.statUtil.NewStat("executionqueue", 0)
+  instance.statUtil.NewStat("viewchange", 0)
 	return instance
 }
 
@@ -363,11 +379,12 @@ func (instance *pbftCore) close() {
 // allow the view-change protocol to kick-off when the timer expires
 func (instance *pbftCore) ProcessEvent(e events.Event) events.Event {
 	var err error
-	logger.Debugf("Replica %d processing event", instance.id)
+	logger.Debugf("Replica %d processing event, type: %T", instance.id, e)
 	switch et := e.(type) {
 	case viewChangeTimerEvent:
-		logger.Infof("Replica %d view change timer expired, sending view change: %s", instance.id, instance.newViewTimerReason)
+		logger.Infof("Replica %d view change timer expired, sending want view change: %s", instance.id, instance.newViewTimerReason)
 		//instance.sendViewChange()
+    instance.statUtil.Stats["viewchange"].Start(strconv.FormatUint(instance.id, 10))
     instance.sendWantViewChange()
 	case *pbftMessage:
 		return pbftMessageEvent(*et)
@@ -444,20 +461,23 @@ func (instance *pbftCore) ProcessEvent(e events.Event) events.Event {
 		}
 		return instance.processNewView()
 	case viewChangedEvent:
+    if lt, ok := instance.statUtil.Stats["viewchange"].End(strconv.FormatUint(instance.id, 10)); ok {
+      logger.Infof("Viewchange latency: %v", lt)
+    }
 		// No-op, processed by plugins if needed
 	case viewChangeResendTimerEvent:
 		if instance.activeView {
 			logger.Warningf("Replica %d had its view change resend timer expire but it's in an active view, this is benign but may indicate a bug", instance.id)
 			return nil
 		}
-		logger.Debugf("Replica %d view change resend timer expired before view change quorum was reached, resending", instance.id)
+		logger.Infof("Replica %d view change resend timer expired before view change quorum was reached, resending", instance.id)
 		instance.view-- // sending the view change increments this
 		return instance.sendViewChange()
-  case wantVieChangeResendTimerEvent:
+  case wantViewChangeResendTimerEvent:
     if instance.activeView {
 			return nil
 		}
-		logger.Debugf("Replica %d want view change resend timer expired before want view change quorum was reached, resending", instance.id)
+		logger.Infof("Replica %d want view change resend timer expired before want view change quorum was reached, resending", instance.id)
 		return instance.sendWantViewChange()
 	default:
 		logger.Warningf("Replica %d received an unknown message type %T", instance.id, et)
@@ -512,11 +532,7 @@ func (instance *pbftCore) getCert(v uint64, n uint64) (cert *msgCert) {
 // two intersection quora
 func (instance *pbftCore) intersectionQuorum() int {
 	//return (instance.N + instance.f + 2) / 2
-	if instance.sgx {
-		return instance.f + 1
-	} else {
-		return (instance.N + instance.f + 2) / 2
-	}
+  return (instance.N - 1)/2 + 1
 }
 
 // allCorrectReplicasQuorum returns the number of correct replicas (N-f)
@@ -534,10 +550,6 @@ func (instance *pbftCore) prePrepared(digest string, v uint64, n uint64) bool {
 
 	if digest != "" && !mInLog {
 		return false
-	}
-
-	if q, ok := instance.qset[qidx{digest, n}]; ok && q.View == v {
-		return true
 	}
 
 	cert := instance.certStore[msgID{v, n}]
@@ -651,7 +663,12 @@ func (instance *pbftCore) recvMsg(msg *Message, senderID uint64) (interface{}, e
 			return nil, fmt.Errorf("Sender ID included in view-change message (%v) doesn't match ID corresponding to the receiving stream (%v)", vc.ReplicaId, senderID)
 		}
 		return vc, nil
-	} else if nv := msg.GetNewView(); nv != nil {
+	} else if wvc := msg.GetWantViewChange(); wvc != nil {
+      if senderID != wvc.Id {
+			  return nil, fmt.Errorf("Sender ID included in view-change message (%v) doesn't match ID corresponding to the receiving stream (%v)", vc.ReplicaId, senderID)
+		  }
+		  return wvc, nil
+  } else if nv := msg.GetNewView(); nv != nil {
 		if senderID != nv.ReplicaId {
 			return nil, fmt.Errorf("Sender ID included in new-view message (%v) doesn't match ID corresponding to the receiving stream (%v)", nv.ReplicaId, senderID)
 		}
@@ -733,14 +750,12 @@ func (instance *pbftCore) sendPrePrepare(reqBatch *RequestBatch, digest string) 
 		RequestBatch:   reqBatch,
 		ReplicaId:      instance.id,
 	}
-  if instance.sgx {
-    att, _ := instance.a2m.Advance("prep", int(instance.view*instance.a2mL+n), make([]byte, 32), []byte("0"))
-    preprep.Attestation = att
-  }
+  att, _ := instance.a2m.Advance("prep", int(instance.view*instance.a2mL+n), make([]byte, 32), []byte("0"))
+  preprep.Attestation = att
+
 	cert := instance.getCert(instance.view, n)
 	cert.prePrepare = preprep
 	cert.digest = digest
-	instance.persistQSet()
 	instance.innerBroadcast(&Message{Payload: &Message_PrePrepare{PrePrepare: preprep}})
 	instance.maybeSendCommit(digest, instance.view, n)
 }
@@ -779,12 +794,10 @@ func (instance *pbftCore) recvPrePrepare(preprep *PrePrepare) error {
 	logger.Debugf("Replica %d received pre-prepare from replica %d for view=%d/seqNo=%d",
 		instance.id, preprep.ReplicaId, preprep.View, preprep.SequenceNumber)
 
-  if instance.sgx {
     if ok, _ := instance.a2m.VerifyAttestation(preprep.Attestation); ok==0 {
       logger.Warningf("Replica %d ignore pre-prepare: failed to verify attestation", instance.id)
         return nil
     }
-  }
 
 	if !instance.activeView {
 		logger.Debugf("Replica %d ignoring pre-prepare as we are in a view change", instance.id)
@@ -848,12 +861,9 @@ func (instance *pbftCore) recvPrePrepare(preprep *PrePrepare) error {
 			BatchDigest:    preprep.BatchDigest,
 			ReplicaId:      instance.id,
 		}
-    if instance.sgx {
-      att, _ := instance.a2m.Advance("prepare", int(preprep.View*instance.a2mL+ preprep.SequenceNumber), make([]byte, 32), []byte("0"))
-      prep.Attestation = att
-    }
+    att, _ := instance.a2m.Advance("prepare", int(preprep.View*instance.a2mL+ preprep.SequenceNumber), make([]byte, 32), []byte("0"))
+    prep.Attestation = att
 		cert.sentPrepare = true
-		instance.persistQSet()
 		instance.recvPrepare(prep)
 		return instance.innerBroadcast(&Message{Payload: &Message_Prepare{Prepare: prep}})
 	}
@@ -865,11 +875,9 @@ func (instance *pbftCore) recvPrepare(prep *Prepare) error {
 	logger.Debugf("Replica %d received prepare from replica %d for view=%d/seqNo=%d",
 		instance.id, prep.ReplicaId, prep.View, prep.SequenceNumber)
 
-  if instance.sgx {
-    if ok, _ := instance.a2m.VerifyAttestation(prep.Attestation); ok==0 {
+  if ok, _ := instance.a2m.VerifyAttestation(prep.Attestation); ok==0 {
       logger.Warningf("Replica %d ignore prepare: failed to verify attestation", instance.id)
         return nil
-    }
   }
 
 	if instance.primary(prep.View) == prep.ReplicaId {
@@ -913,10 +921,9 @@ func (instance *pbftCore) maybeSendCommit(digest string, v uint64, n uint64) err
 			BatchDigest:    digest,
 			ReplicaId:      instance.id,
 		}
-    if instance.sgx {
-      att, _ := instance.a2m.Advance("commit", int(v*instance.a2mL+n), make([]byte, 32), []byte("0"))
-      commit.Attestation = att
-    }
+    att, _ := instance.a2m.Advance("commit", int(v*instance.a2mL+n), make([]byte, 32), []byte("0"))
+    commit.Attestation = att
+    instance.updatePSet(n, att)
 		cert.sentCommit = true
 		instance.recvCommit(commit)
 		return instance.innerBroadcast(&Message{&Message_Commit{commit}})
@@ -928,11 +935,9 @@ func (instance *pbftCore) recvCommit(commit *Commit) error {
 	logger.Debugf("Replica %d received commit from replica %d for view=%d/seqNo=%d",
 		instance.id, commit.ReplicaId, commit.View, commit.SequenceNumber)
 
-  if instance.sgx {
-    if ok, _ := instance.a2m.VerifyAttestation(commit.Attestation); ok==0 {
-      logger.Warningf("Replica %d ignore commit: failed to verify attestation", instance.id)
+  if ok, _ := instance.a2m.VerifyAttestation(commit.Attestation); ok==0 {
+     logger.Warningf("Replica %d ignore commit: failed to verify attestation", instance.id)
         return nil
-    }
   }
 
 	if !instance.inWV(commit.View, commit.SequenceNumber) {
@@ -953,6 +958,7 @@ func (instance *pbftCore) recvCommit(commit *Commit) error {
 		}
 	}
 	cert.commit = append(cert.commit, commit)
+  instance.persistQSet();
 
 	if instance.committed(commit.BatchDigest, commit.View, commit.SequenceNumber) {
 		instance.stopTimer()
@@ -964,11 +970,9 @@ func (instance *pbftCore) recvCommit(commit *Commit) error {
 		delete(instance.outstandingReqBatches, commit.BatchDigest)
 
 		instance.executeOutstanding()
-    if instance.sgx {
-      instance.a2m.Advance("exec", int(commit.View*instance.a2mL+commit.SequenceNumber), make([]byte, 32), []byte("0"))
-    }
+    att, _ := instance.a2m.Advance("exec", int(commit.View*instance.a2mL+commit.SequenceNumber), make([]byte, 32), []byte("0"))
+    instance.updateQSet(commit.SequenceNumber, att)
 
-  
 		if commit.SequenceNumber == instance.viewChangeSeqNo {
 			logger.Infof("Replica %d cycling view for seqNo=%d", instance.id, commit.SequenceNumber)
 			instance.sendViewChange()
@@ -1099,7 +1103,7 @@ func (instance *pbftCore) Checkpoint(seqNo uint64, id []byte) {
 		Id:             idAsString,
 	}
 	instance.chkpts[seqNo] = idAsString
-
+  logger.Infof("Replica %d persisting checkpoint for seq: %v", instance.id, seqNo)
 	instance.persistCheckpoint(seqNo, id)
 	instance.recvCheckpoint(chkpt)
 	instance.innerBroadcast(&Message{Payload: &Message_Checkpoint{Checkpoint: chkpt}})
@@ -1138,12 +1142,12 @@ func (instance *pbftCore) moveWatermarks(n uint64) {
 	}
 
 	for testChkpt := range instance.checkpointStore {
-		if testChkpt.SequenceNumber <= h {
+		if testChkpt.SequenceNumber < h { // only delete UP TO h
 			logger.Debugf("Replica %d cleaning checkpoint message from replica %d, seqNo %d, b64 snapshot id %s",
 				instance.id, testChkpt.ReplicaId, testChkpt.SequenceNumber, testChkpt.Id)
 			delete(instance.checkpointStore, testChkpt)
-		}
-	}
+		} 	
+  }
 
 	for n := range instance.pset {
 		if n <= h {
@@ -1152,7 +1156,7 @@ func (instance *pbftCore) moveWatermarks(n uint64) {
 	}
 
 	for idx := range instance.qset {
-		if idx.n <= h {
+		if idx <= h {
 			delete(instance.qset, idx)
 		}
 	}
@@ -1275,7 +1279,7 @@ func (instance *pbftCore) recvCheckpoint(chkpt *Checkpoint) events.Event {
 	}
 
 	instance.checkpointStore[*chkpt] = true
-
+  logger.Infof("Replica %d added checkpoint, current len = %d", instance.id, len(instance.checkpointStore))
 	// Track how many different checkpoint values we have for the seqNo in question
 	diffValues := make(map[string]struct{})
 	diffValues[chkpt.Id] = struct{}{}
