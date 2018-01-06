@@ -427,6 +427,8 @@ func (instance *pbftCore) ProcessEvent(e events.Event) events.Event {
 	case viewChangedEvent:
     if lt, ok := instance.statUtil.Stats["viewchange"].End(strconv.FormatUint(instance.id, 10)); ok {
       logger.Infof("Viewchange latency: %d", lt)
+    } else {
+      logger.Infof("Error printing out view change latency")
     }
 		// No-op, processed by plugins if needed
 	case viewChangeResendTimerEvent:

@@ -20,7 +20,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"reflect"
-
+  "strconv"
 	"github.com/hyperledger/fabric/consensus/util/events"
 )
 
@@ -124,7 +124,9 @@ func (instance *pbftCore) calcQSet() map[qidx]*ViewChange_PQ {
 
 func (instance *pbftCore) sendViewChange() events.Event {
 	instance.stopTimer()
-
+  if lt, ok := instance.statUtil.Stats["viewchange"].End(strconv.FormatUint(instance.id, 10)); !ok {
+    instance.statUtil.Stats["viewchange"].Start(strconv.FormatUint(instance.id, 10));
+  }
 	delete(instance.newViewStore, instance.view)
 	instance.view++
 	instance.activeView = false
