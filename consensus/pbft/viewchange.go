@@ -20,7 +20,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"reflect"
-
+  "strconv"
 	"github.com/hyperledger/fabric/consensus/util/events"
 )
 
@@ -735,6 +735,11 @@ func (instance *pbftCore) processNewView2(nv *NewView) events.Event {
 	instance.startTimerIfOutstandingRequests()
 
 	logger.Infof("Replica %d done cleaning view change artifacts, calling into consumer", instance.id)
+  if lt, ok := instance.statUtil.Stats["viewchange"].End(strconv.FormatUint(instance.id, 10)); ok {
+      logger.Infof("Viewchange latency: %v", lt)
+  } else {
+      logger.Infof("Error printing out viewchange latency")
+  }
 
 	return viewChangedEvent{}
 }
