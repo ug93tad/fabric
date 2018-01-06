@@ -246,7 +246,7 @@ func (instance *pbftCore) sendWantViewChange() events.Event {
 
 func (instance *pbftCore) sendViewChange() events.Event {
 	instance.stopTimer()
-  if lt, ok := instance.statUtil.Stats["viewchange"].End(strconv.FormatUint(instance.id, 10)); !ok {
+  if _, ok := instance.statUtil.Stats["viewchange"].End(strconv.FormatUint(instance.id, 10)); !ok {
     instance.statUtil.Stats["viewchange"].Start(strconv.FormatUint(instance.id, 10))
   }
 
