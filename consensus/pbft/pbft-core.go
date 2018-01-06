@@ -1279,7 +1279,6 @@ func (instance *pbftCore) recvCheckpoint(chkpt *Checkpoint) events.Event {
 	}
 
 	instance.checkpointStore[*chkpt] = true
-  logger.Infof("Replica %d added checkpoint, current len = %d", instance.id, len(instance.checkpointStore))
 	// Track how many different checkpoint values we have for the seqNo in question
 	diffValues := make(map[string]struct{})
 	diffValues[chkpt.Id] = struct{}{}

@@ -169,7 +169,6 @@ func (instance *pbftCore) calcPSet() map[uint64]*ViewChange_PQ {
       }
     }
 
-    logger.Infof("Replica %d calcPSet, view: %d", instance.id, instance.view)
 		pset[idx.n] = &ViewChange_PQ{
       SeqNo:  idx.n,
 			Prepare: prepareCerts,
@@ -758,7 +757,6 @@ func (instance *pbftCore) selectInitialCheckpoint(vset []*ViewChange) (checkpoin
       }
     }
   }
-  logger.Infof("Replica %d selected checkpoint with seqNo: %d", instance.id, maxSeq)
   ok = true
   for _, c := range vset[vcIdx].Cset {
      replicas = append(replicas, c.Checkpoint.ReplicaId)
