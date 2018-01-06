@@ -725,13 +725,13 @@ func (instance *pbftCore) processNewView2(nv *NewView) events.Event {
 			instance.innerBroadcast(&Message{Payload: &Message_Prepare{Prepare: prep}})
 		}
 	} else {
-		logger.Debugf("Replica %d is now primary, attempting to resubmit requests", instance.id)
+		logger.Infof("Replica %d is now primary, attempting to resubmit requests", instance.id)
 		instance.resubmitRequestBatches()
 	}
 
 	instance.startTimerIfOutstandingRequests()
 
-	logger.Debugf("Replica %d done cleaning view change artifacts, calling into consumer", instance.id)
+	logger.Infof("Replica %d done cleaning view change artifacts, calling into consumer", instance.id)
 
 	return viewChangedEvent{}
 }
