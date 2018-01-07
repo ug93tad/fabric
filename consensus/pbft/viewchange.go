@@ -395,6 +395,9 @@ func (instance *pbftCore) recvWantViewChange(wvc *WantViewChange) events.Event {
 func (instance *pbftCore) recvViewChange(vc *ViewChange) events.Event {
 	logger.Infof("Replica %d received view-change from replica %d, v:%d, h:%d, |C|:%d, |P|:%d, |Q|:%d",
 		instance.id, vc.ReplicaId, vc.View, vc.H, len(vc.Cset), len(vc.Pset), len(vc.Qset))
+  if _, ok := instance.statUtil.Stats["viewchange"].End(strconv.FormatUint(instance.id, 10)); !ok {
+    instance.statUtil.Stats["viewchange"].Start(strconv.FormatUint(instance.id, 10))
+  }
 
 	if err := instance.verify(vc); err != nil {
 		logger.Warningf("Replica %d found incorrect signature in view-change message: %s", instance.id, err)
@@ -736,9 +739,9 @@ func (instance *pbftCore) processNewView2(nv *NewView) events.Event {
 
 	logger.Infof("Replica %d done cleaning view change artifacts, calling into consumer", instance.id)
   if lt, ok := instance.statUtil.Stats["viewchange"].End(strconv.FormatUint(instance.id, 10)); ok {
-      logger.Infof("Viewchange latency: %v", lt)
+      logger.Infof("Viewchange latency (before viewChangedEvent): %v", lt)
   } else {
-      logger.Infof("Error printing out viewchange latency")
+      logger.Infof("Error printing out viewchange latency (before viewChangedEvent)")
   }
 
 	return viewChangedEvent{}
