@@ -124,7 +124,7 @@ func (instance *pbftCore) calcQSet() map[qidx]*ViewChange_PQ {
 
 func (instance *pbftCore) sendViewChange() events.Event {
 	instance.stopTimer()
-  if _, ok := instance.statUtil.Stats["viewchange"].End(strconv.FormatUint(instance.id, 10)); !ok {
+  if _, ok := instance.statUtil.Stats["viewchange"]; !ok {
     instance.statUtil.Stats["viewchange"].Start(strconv.FormatUint(instance.id, 10));
   }
 	delete(instance.newViewStore, instance.view)
@@ -189,7 +189,7 @@ func (instance *pbftCore) recvViewChange(vc *ViewChange) events.Event {
 	logger.Infof("Replica %d received view-change from replica %d, v:%d, h:%d, |C|:%d, |P|:%d, |Q|:%d",
 		instance.id, vc.ReplicaId, vc.View, vc.H, len(vc.Cset), len(vc.Pset), len(vc.Qset))
 
-  if _, ok := instance.statUtil.Stats["viewchange"].End(strconv.FormatUint(instance.id, 10)); !ok {
+  if _, ok := instance.statUtil.Stats["viewchange"]; !ok {
     instance.statUtil.Stats["viewchange"].Start(strconv.FormatUint(instance.id, 10));
   }
 
