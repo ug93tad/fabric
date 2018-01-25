@@ -728,7 +728,7 @@ func (instance *pbftCore) processNewView2(nv *NewView) events.Event {
 				cert.sentPrepare = true
 				instance.recvPrepare(prep)
 			}
-			instance.innerBroadcast(&Message{Payload: &Message_Prepare{Prepare: prep}})
+			instance.sendToLeader(&Message{Payload: &Message_Prepare{Prepare: prep}})
 		}
 	} else {
 		logger.Infof("Replica %d is now primary, attempting to resubmit requests", instance.id)

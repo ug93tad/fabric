@@ -581,15 +581,23 @@ func (instance *pbftCore) prepared(digest string, v uint64, n uint64) bool {
 		return false
 	}
 
+  fromLeader := false
+  leader := instance.primary(instance.view)
 	for _, p := range cert.prepare {
 		if p.View == v && p.SequenceNumber == n && p.BatchDigest == digest {
 			quorum++
+      if p.ReplicaId == leader {
+        fromLeader = true
+      }
 		}
 	}
 
 	logger.Debugf("Replica %d prepare count for view=%d/seqNo=%d/digest=%v: %d",
 		instance.id, v, n, digest, quorum)
 
+  if instance.id != leader {
+    return fromLeader
+  }
 	return quorum >= instance.intersectionQuorum()-1
 }
 
@@ -604,15 +612,23 @@ func (instance *pbftCore) committed(digest string, v uint64, n uint64) bool {
 		return false
 	}
 
+  fromLeader := false
+  leader := instance.primary(instance.view)
 	for _, p := range cert.commit {
 		if p.View == v && p.SequenceNumber == n {
 			quorum++
+      if p.ReplicaId == leader {
+        fromLeader = true
+      }
 		}
 	}
 
 	logger.Debugf("Replica %d commit count for view=%d/seqNo=%d: %d",
 		instance.id, v, n, quorum)
 
+  if instance.id != leader {
+    return fromLeader
+  }
 	return quorum >= instance.intersectionQuorum()
 }
 
@@ -856,7 +872,7 @@ func (instance *pbftCore) recvPrePrepare(preprep *PrePrepare) error {
 	instance.nullRequestTimer.Stop()
 
 	if instance.primary(instance.view) != instance.id && instance.prePrepared(preprep.BatchDigest, preprep.View, preprep.SequenceNumber) && !cert.sentPrepare {
-		logger.Debugf("Backup %d broadcasting prepare for view=%d/seqNo=%d", instance.id, preprep.View, preprep.SequenceNumber)
+		logger.Debugf("Backup %d sending prepare to leader for view=%d/seqNo=%d", instance.id, preprep.View, preprep.SequenceNumber)
 		prep := &Prepare{
 			View:           preprep.View,
 			SequenceNumber: preprep.SequenceNumber,
@@ -867,7 +883,8 @@ func (instance *pbftCore) recvPrePrepare(preprep *PrePrepare) error {
     prep.Attestation = att
 		cert.sentPrepare = true
 		instance.recvPrepare(prep)
-		return instance.innerBroadcast(&Message{Payload: &Message_Prepare{Prepare: prep}})
+    return instance.sendToLeader(&Message{Payload: &Message_Prepare{Prepare: prep}})
+		//return instance.innerBroadcast(&Message{Payload: &Message_Prepare{Prepare: prep}})
 	}
 
 	return nil
@@ -881,11 +898,6 @@ func (instance *pbftCore) recvPrepare(prep *Prepare) error {
       logger.Warningf("Replica %d ignore prepare: failed to verify attestation", instance.id)
         return nil
   }
-
-	if instance.primary(prep.View) == prep.ReplicaId {
-		logger.Warningf("Replica %d received prepare from primary, ignoring", instance.id)
-		return nil
-	}
 
 	if !instance.inWV(prep.View, prep.SequenceNumber) {
 		if prep.SequenceNumber != instance.h && !instance.skipInProgress {
@@ -911,34 +923,52 @@ func (instance *pbftCore) recvPrepare(prep *Prepare) error {
 	return instance.maybeSendCommit(prep.BatchDigest, prep.View, prep.SequenceNumber)
 }
 
-//
+// if primary: broadcast Prepare
+// if replica: send Commit to leader
 func (instance *pbftCore) maybeSendCommit(digest string, v uint64, n uint64) error {
 	cert := instance.getCert(v, n)
 	if instance.prepared(digest, v, n) && !cert.sentCommit {
-		logger.Debugf("Replica %d broadcasting commit for view=%d/seqNo=%d",
-			instance.id, v, n)
-		commit := &Commit{
-			View:           v,
-			SequenceNumber: n,
-			BatchDigest:    digest,
-			ReplicaId:      instance.id,
-		}
+    commit := &Commit{
+                    View:           v,
+                    SequenceNumber: n,
+                    BatchDigest:    digest,
+                    ReplicaId:      instance.id,
+                }
     att, _ := instance.a2m.Advance("commit", int(v*instance.a2mL+n), make([]byte, 32), []byte("0"))
     commit.Attestation = att
     instance.updatePSet(n, att)
-		cert.sentCommit = true
-		instance.recvCommit(commit)
-		return instance.innerBroadcast(&Message{&Message_Commit{commit}})
+    cert.sentCommit = true
+    instance.recvCommit(commit)
+
+		if instance.id != instance.primary(instance.view) {
+      logger.Debugf("Replica %d sending commit to leader view=%d/seqNo=%d", instance.id, v, n)
+                //return instance.innerBroadcast(&Message{&Message_Commit{commit}})
+      return instance.sendToLeader(&Message{&Message_Commit{commit}})
+    } else {
+        logger.Debugf("Replica %d (leader) broadcasting prepare for view=%d/seqNo=%d", instance.id, v, n)
+        prep := &Prepare{
+			            View:           v,
+			            SequenceNumber: n,
+			            BatchDigest:    digest,
+			            ReplicaId:      instance.id,
+		            }
+        att, _ := instance.a2m.Advance("prepare", int(v*instance.a2mL+ n), make([]byte, 32), []byte("0"))
+        prep.Attestation = att
+		    cert.sentPrepare = true
+		    return instance.innerBroadcast(&Message{Payload: &Message_Prepare{Prepare: prep}})
+    }
 	}
 	return nil
 }
 
+// primary: if committed, broadcast Commit, then execute committed 
+// replica: no change
 func (instance *pbftCore) recvCommit(commit *Commit) error {
 	logger.Debugf("Replica %d received commit from replica %d for view=%d/seqNo=%d",
 		instance.id, commit.ReplicaId, commit.View, commit.SequenceNumber)
 
   if ok, _ := instance.a2m.VerifyAttestation(commit.Attestation); ok==0 {
-     logger.Warningf("Replica %d ignore commit: failed to verify attestation", instance.id)
+    logger.Warningf("Replica %d ignore commit: failed to verify attestation", instance.id)
         return nil
   }
 
@@ -971,6 +1001,23 @@ func (instance *pbftCore) recvCommit(commit *Commit) error {
 		}
 		delete(instance.outstandingReqBatches, commit.BatchDigest)
 
+    // if primary, broadcast Commit message 
+    if instance.id == instance.primary(instance.view) {
+      logger.Debugf("Replica %d (leader) broadcasting commit for view=%d/SeqNo=%d", instance.id, instance.view, commit.SequenceNumber)
+      commitMsg := &Commit{
+                  View:           instance.view,
+                  SequenceNumber: commit.SequenceNumber,
+                  BatchDigest:    commit.BatchDigest,
+                  ReplicaId:      instance.id,
+                }
+      att, _ := instance.a2m.Advance("commit", int(instance.view*instance.a2mL+commit.SequenceNumber), make([]byte, 32), []byte("0"))
+      commitMsg.Attestation = att
+      instance.updatePSet(commit.SequenceNumber, att)
+      cert.sentCommit = true
+      instance.innerBroadcast(&Message{&Message_Commit{commitMsg}})
+    }
+
+    // execute as normal
 		instance.executeOutstanding()
     att, _ := instance.a2m.Advance("exec", int(commit.View*instance.a2mL+commit.SequenceNumber), make([]byte, 32), []byte("0"))
     instance.updateQSet(commit.SequenceNumber, att)
@@ -1434,6 +1481,15 @@ func (instance *pbftCore) innerBroadcast(msg *Message) error {
 		instance.consumer.broadcast(msgRaw)
 	}
 	return nil
+}
+
+func (instance *pbftCore) sendToLeader(msg *Message) error {
+  msgRaw, err := proto.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("Cannot marshal message %s", err)
+	}
+  instance.consumer.unicast(msgRaw, instance.primary(instance.view))
+  return nil
 }
 
 func (instance *pbftCore) updateViewChangeSeqNo() {
