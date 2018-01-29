@@ -70,6 +70,7 @@ func NewConsensusHandler(coord peer.MessageHandlerCoordinator,
 	}
 
 	handler.consenterChan = make(chan *util.Message, consensusQueueSize)
+  logger.Warningf("Creating new handling channel of size %d", consensusQueueSize)
 	getEngineImpl().consensusFan.AddFaninChannel(handler.consenterChan)
 
 	return handler, nil
