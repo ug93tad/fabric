@@ -96,6 +96,7 @@ const (
 	Message_SYNC_STATE_DELTAS       Message_Type = 17
 	Message_RESPONSE                Message_Type = 20
 	Message_CONSENSUS               Message_Type = 21
+  Message_CONSENSUS_REQUEST       Message_Type = 22
 )
 
 var Message_Type_name = map[int32]string{
@@ -115,6 +116,7 @@ var Message_Type_name = map[int32]string{
 	17: "SYNC_STATE_DELTAS",
 	20: "RESPONSE",
 	21: "CONSENSUS",
+  22: "CONSENSUS_REQUEST",
 }
 var Message_Type_value = map[string]int32{
 	"UNDEFINED":               0,
@@ -133,6 +135,7 @@ var Message_Type_value = map[string]int32{
 	"SYNC_STATE_DELTAS":       17,
 	"RESPONSE":                20,
 	"CONSENSUS":               21,
+  "CONSENSUS_REQUEST":       22,
 }
 
 func (x Message_Type) String() string {

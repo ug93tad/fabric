@@ -78,7 +78,7 @@ func NewConsensusHandler(coord peer.MessageHandlerCoordinator,
 
 // HandleMessage handles the incoming Fabric messages for the Peer
 func (handler *ConsensusHandler) HandleMessage(msg *pb.Message) error {
-	if msg.Type == pb.Message_CONSENSUS {
+	if msg.Type == pb.Message_CONSENSUS_REQUEST {
 		senderPE, _ := handler.To()
 		select {
 		case handler.consenterChan <- &util.Message{
@@ -91,6 +91,15 @@ func (handler *ConsensusHandler) HandleMessage(msg *pb.Message) error {
 			logger.Errorf("Failed to queue consensus message because: %v", err)
 			return err
 		}
+	}
+
+  if msg.Type == pb.Message_CONSENSUS {
+		senderPE, _ := handler.To()
+		handler.consenterChan <- &util.Message{
+			Msg:    msg,
+			Sender: senderPE.ID,
+		}
+		return nil
 	}
 
 	if logger.IsEnabledFor(logging.DEBUG) {
