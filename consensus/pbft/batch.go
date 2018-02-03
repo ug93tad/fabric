@@ -269,7 +269,7 @@ func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) e
 		return op.submitToLeader(req)
 	}
 
-	if ocMsg.Type != pb.Message_CONSENSUS || ocMsg.Type != pb.Message_CONSENSUS_REQUEST {
+	if ocMsg.Type != pb.Message_CONSENSUS && ocMsg.Type != pb.Message_CONSENSUS_REQUEST {
 		logger.Errorf("Unexpected message type: %s", ocMsg.Type)
 		return nil
 	}
