@@ -88,23 +88,21 @@ func (handler *ConsensusHandler) HandleMessage(msg *pb.Message) error {
 		return nil
 	}
 
-	if msg.Type == pb.Message_CONSENSUS_REQUEST &&  len(handler.consenterChan) < handler.requestQueueSize {
+	if msg.Type == pb.Message_CONSENSUS_REQUEST {
 		senderPE, _ := handler.To()
-		select {
-		case handler.consenterChan <- &util.Message{
-			Msg:    msg,
-			Sender: senderPE.ID,
-		}:
-			return nil
-		default:
-			err := fmt.Errorf("Message channel for %v full, rejecting", senderPE.ID)
-			logger.Errorf("Failed to queue consensus message because: %v", err)
-			return err
-		}
-	} else {
-    err := fmt.Errorf("Message channel full, rejecting")
-		logger.Errorf("Failed to queue consensus message because: %v", err)
-		return err
+    if len(handler.consenterChan) < handler.requestQueueSize {
+		  select {
+		    case handler.consenterChan <- &util.Message{
+			    Msg:    msg,
+			    Sender: senderPE.ID,
+		    }:
+			    return nil
+		    default:
+			    err := fmt.Errorf("Message channel for %v full, rejecting", senderPE.ID)
+			    logger.Errorf("Failed to queue consensus message because: %v", err)
+			    return err
+		  }
+	  }
   }
 
 	if logger.IsEnabledFor(logging.DEBUG) {
