@@ -79,8 +79,6 @@ func NewConsensusHandler(coord peer.MessageHandlerCoordinator,
 
 // HandleMessage handles the incoming Fabric messages for the Peer
 func (handler *ConsensusHandler) HandleMessage(msg *pb.Message) error {
-  senderID, _ := handler.To()
-  logger.Debugf("Handling message of type %v from %v", msg.Type, senderID)
   if msg.Type == pb.Message_CONSENSUS {
 		senderPE, _ := handler.To()
 		handler.consenterChan <- &util.Message{

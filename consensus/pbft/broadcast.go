@@ -46,7 +46,7 @@ type sendRequest struct {
 }
 
 func newBroadcaster(self uint64, N int, f int, broadcastTimeout time.Duration, c communicator) *broadcaster {
-	queueSize := 10 // XXX increase after testing
+	//queueSize := 10 // XXX increase after testing
 
 	chans := make(map[uint64]chan *sendRequest)
 	b := &broadcaster{
@@ -60,7 +60,8 @@ func newBroadcaster(self uint64, N int, f int, broadcastTimeout time.Duration, c
 		if uint64(i) == self {
 			continue
 		}
-		chans[uint64(i)] = make(chan *sendRequest, queueSize)
+		//chans[uint64(i)] = make(chan *sendRequest, queueSize)
+    chans[uint64(i)] = make(chan *sendRequest)
 	}
 
 	// We do not start the go routines in the above loop to avoid concurrent map read/writes
