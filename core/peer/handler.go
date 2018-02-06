@@ -269,7 +269,8 @@ func (d *Handler) when(stateToCheck string) bool {
 
 // HandleMessage handles the Openchain messages for the Peer.
 func (d *Handler) HandleMessage(msg *pb.Message) error {
-	peerLogger.Debugf("Handling Message of type: %s ", msg.Type)
+  senderId, _ := d.To()
+	peerLogger.Debugf("Handling Message of type: %s from %v", msg.Type, senderId)
 	if d.FSM.Cannot(msg.Type.String()) {
 		return fmt.Errorf("Peer FSM cannot handle message (%s) with payload size (%d) while in state: %s", msg.Type.String(), len(msg.Payload), d.FSM.Current())
 	}
@@ -290,7 +291,8 @@ func (d *Handler) SendMessage(msg *pb.Message) error {
 	//instead of calling Send directly on the grpc stream
 	d.chatMutex.Lock()
 	defer d.chatMutex.Unlock()
-	peerLogger.Debugf("Sending message to stream of type: %s ", msg.Type)
+  senderId, _ := d.To()
+	peerLogger.Debugf("Sending message to stream of type: %s to %v", msg.Type, senderId)
 	err := d.ChatStream.Send(msg)
 	if err != nil {
 		return fmt.Errorf("Error Sending message through ChatStream: %s", err)
