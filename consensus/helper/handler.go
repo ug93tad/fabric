@@ -65,7 +65,7 @@ func NewConsensusHandler(coord peer.MessageHandlerCoordinator,
 
 	consensusQueueSize := viper.GetInt("peer.validator.consensus.buffersize")
 
-  handler.requestQueueSize = consensusQueueSize*3 / 4
+  handler.requestQueueSize = consensusQueueSize*1 / 4
 	if consensusQueueSize <= 0 {
 		logger.Errorf("peer.validator.consensus.buffersize is set to %d, but this must be a positive integer, defaulting to %d", consensusQueueSize, DefaultConsensusQueueSize)
 		consensusQueueSize = DefaultConsensusQueueSize
