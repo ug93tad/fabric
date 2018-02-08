@@ -81,29 +81,20 @@ func NewConsensusHandler(coord peer.MessageHandlerCoordinator,
 func (handler *ConsensusHandler) HandleMessage(msg *pb.Message) error {
   senderId, _ := handler.To()
   logger.Debugf("Handling message of type %v from %v", msg.Type, senderId)
-  if msg.Type == pb.Message_CONSENSUS {
+  if msg.Type == pb.Message_CONSENSUS || msg.Type == pb.Message_CONSENSUS_REQUEST {
 		senderPE, _ := handler.To()
-		handler.consenterChan <- &util.Message{
-			Msg:    msg,
-			Sender: senderPE.ID,
-		}
-		return nil
+    select {
+		  case handler.consenterChan <- &util.Message{
+			  Msg:    msg,
+			  Sender: senderPE.ID,
+		  }:
+		    return nil
+      default:
+        err := fmt.Errorf("Message channel for %v full, rejecting", senderPE.ID)
+			  logger.Errorf("Failed to queue consensus message because: %v", err)
+			  return err
+    }
 	}
-
-	if msg.Type == pb.Message_CONSENSUS_REQUEST {
-		senderPE, _ := handler.To()
-    if len(handler.consenterChan) < handler.requestQueueSize {
-		  handler.consenterChan <- &util.Message{
-			    Msg:    msg,
-			    Sender: senderPE.ID,
-		      }
-			return nil
-    } else {
-			    err := fmt.Errorf("Message channel for %v full, rejecting", senderPE.ID)
-			    logger.Errorf("Failed to queue consensus message because: %v", err)
-			    return err
-		}
-  }
 
 	if logger.IsEnabledFor(logging.DEBUG) {
 		logger.Debugf("Did not handle message of type %s, passing on to next MessageHandler", msg.Type)
