@@ -136,11 +136,17 @@ func (op *obcBatch) Close() {
 
 func (op *obcBatch) submitToLeader(req *Request) events.Event {
 	// Broadcast the request to the network, in case we're in the wrong view
-	op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
+	//op.broadcastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}})
+
+  // submit to leader only
+  leader := op.pbft.primary(op.pbft.view)
+  if leader != op.pbft.id {
+    op.unicastMsg(&BatchMessage{Payload: &BatchMessage_Request{Request: req}}, leader)
+  }
 	op.logAddTxFromRequest(req)
 	op.reqStore.storeOutstanding(req)
 	op.startTimerIfOutstandingRequests()
-	if op.pbft.primary(op.pbft.view) == op.pbft.id && op.pbft.activeView {
+	if leader == op.pbft.id && op.pbft.activeView {
 		return op.leaderProcReq(req)
 	}
 	return nil
@@ -149,7 +155,7 @@ func (op *obcBatch) submitToLeader(req *Request) events.Event {
 func (op *obcBatch) broadcastMsg(msg *BatchMessage) {
 	msgPayload, _ := proto.Marshal(msg)
 	ocMsg := &pb.Message{
-		Type:    pb.Message_CONSENSUS,
+		Type:    pb.Message_CONSENSUS_REQUEST,
 		Payload: msgPayload,
 	}
 	op.broadcaster.Broadcast(ocMsg)
@@ -159,7 +165,7 @@ func (op *obcBatch) broadcastMsg(msg *BatchMessage) {
 func (op *obcBatch) unicastMsg(msg *BatchMessage, receiverID uint64) {
 	msgPayload, _ := proto.Marshal(msg)
 	ocMsg := &pb.Message{
-		Type:    pb.Message_CONSENSUS,
+		Type:    pb.Message_CONSENSUS_REQUEST,
 		Payload: msgPayload,
 	}
 	op.broadcaster.Unicast(ocMsg, receiverID)
@@ -269,7 +275,7 @@ func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) e
 		return op.submitToLeader(req)
 	}
 
-	if ocMsg.Type != pb.Message_CONSENSUS {
+	if ocMsg.Type != pb.Message_CONSENSUS && ocMsg.Type != pb.Message_CONSENSUS_REQUEST {
 		logger.Errorf("Unexpected message type: %s", ocMsg.Type)
 		return nil
 	}
