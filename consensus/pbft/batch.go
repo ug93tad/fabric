@@ -145,7 +145,7 @@ func (op *obcBatch) submitToLeader(req *Request) events.Event {
   }
 	op.logAddTxFromRequest(req)
 	op.reqStore.storeOutstanding(req)
-	op.startTimerIfOutstandingRequests()
+	//op.startTimerIfOutstandingRequests()
 	if leader == op.pbft.id && op.pbft.activeView {
 		return op.leaderProcReq(req)
 	}
