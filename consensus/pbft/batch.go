@@ -298,7 +298,7 @@ func (op *obcBatch) processMessage(ocMsg *pb.Message, senderHandle *pb.PeerID) e
 		if (op.pbft.primary(op.pbft.view) == op.pbft.id) && op.pbft.activeView {
 			return op.leaderProcReq(req)
 		}
-		op.startTimerIfOutstandingRequests()
+		//op.startTimerIfOutstandingRequests()
 		return nil
 	} else if pbftMsg := batchMsg.GetPbftMessage(); pbftMsg != nil {
 		senderID, err := getValidatorID(senderHandle) // who sent this?
