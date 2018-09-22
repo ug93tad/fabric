@@ -1413,7 +1413,7 @@ func (instance *pbftCore) innerBroadcast(msg *Message) error {
 	doByzantine := false
 	if instance.byzantine {
 		rand1 := rand.New(rand.NewSource(time.Now().UnixNano()))
-		doIt := rand1.Intn(3) // go byzantine about 1/3 of the time
+		doIt := rand1.Intn(2) // go byzantine about 1/3 of the time
 		if doIt == 1 {
 			doByzantine = true
 		}
