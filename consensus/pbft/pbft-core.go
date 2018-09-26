@@ -1427,7 +1427,28 @@ func (instance *pbftCore) innerBroadcast(msg *Message) error {
 			if i != ignoreidx && uint64(i) != instance.id { //Pick a random replica and do not send message
 				instance.consumer.unicast(msgRaw, uint64(i))
 			} else {
-				logger.Debugf("PBFT byzantine: not broadcasting to replica %v", i)
+        // equivocate Prepare and Commit
+        if eMsg := msg.GetPrepare(); eMsg != nil {
+          eMsg.SequenceNumber-- // decrease sequence number
+          msgRaw, err = proto.Marshal(msg)
+          if err != nil {
+            eMsg.SequenceNumber++
+            return fmt.Errorf("Cannot marshal %s", err)
+          }
+          instance.consumer.unicast(msgRaw, uint64(i))
+          eMsg.SequenceNumber++ // restore
+        } else if eMsg := msg.GetCommit(); eMsg != nil {
+          eMsg.SequenceNumber--
+          msgRaw, err = proto.Marshal(msg)
+          if err != nil {
+            eMsg.SequenceNumber++
+            return fmt.Errorf("Cannot marshal %s", err)
+          }
+          instance.consumer.unicast(msgRaw, uint64(i))
+          eMsg.SequenceNumber++ // restore
+        } else {
+          logger.Debugf("PBFT byzantine: not broadcasting to replica %v", i)
+        }
 			}
 		}
 	} else {
