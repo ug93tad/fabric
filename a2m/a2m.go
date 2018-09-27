@@ -1,6 +1,8 @@
 package a2m
 
-import "math/rand"
+import (
+      "math/rand"
+      "time")
 
 // //go:generate moq -out am2_impl.go . A2MInterface
 type A2MInterface interface {
@@ -23,26 +25,41 @@ func randomBytes(length int) []byte {
   return x
 }
 
+var totalTime uint64 
+func GetA2MTimeAndReset() uint64{
+  x := totalTime
+  totalTime = 0
+  return x 
+}
 
 const MESSAGE_SIZE =121
 const DIGEST_SIZE = 32
 // create new mock A2M interface
 func CreateNewA2M() A2MInterface {
   advanceFunc := func(logname string, n int, newdigest []byte, input []byte) ([]byte, error){
+    time.Sleep(465*time.Microsecond)
+    totalTime += 465*1000
     return randomBytes(MESSAGE_SIZE), nil
   }
   appendFunc := func(logname string, input []byte) ([]byte, error) {
+    time.Sleep(465*time.Microsecond)
+    totalTime += 465*1000
     return randomBytes(MESSAGE_SIZE), nil
   }
   getMessageFunc := func(attestation []byte) ([]byte ,error) {
+    // not using at the moment
     return randomBytes(DIGEST_SIZE), nil
   }
   lookupFunc := func(logname string, n int) ([]byte, error) {
+    time.Sleep(465*time.Microsecond)
+    totalTime += 465*1000
     return randomBytes(MESSAGE_SIZE), nil
   }
   startA2MFunc := func() {
   }
   verifyAttestationFunc := func(attestation []byte) (int, error) {
+    time.Sleep(844*time.Microsecond)
+    totalTime += 844*1000
     return 1, nil
   }
   verifyMsgFunc := func(messsage []byte, attestation []byte) (int, error) {

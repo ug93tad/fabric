@@ -968,6 +968,7 @@ func (instance *pbftCore) recvCommit(commit *Commit) error {
 
 		if lt, ok := instance.statUtil.Stats["consensus"].End(commit.BatchDigest); ok {
 			logger.Infof("Consensus latency: %v", lt)
+      logger.Infof("A2M latency: %v", a2m.GetA2MTimeAndReset())
 		}
 		delete(instance.outstandingReqBatches, commit.BatchDigest)
 
