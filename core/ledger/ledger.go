@@ -190,6 +190,10 @@ func (ledger *Ledger) CommitTxBatch(id interface{}, transactions []*protos.Trans
 	if transactionResults != nil {
 		ccEvents = make([]*protos.ChaincodeEvent, len(transactionResults))
 		for i := 0; i < len(transactionResults); i++ {
+      if transactionResults[i].ErrorCode != 0 {
+        ccEvents[i] = &protos.ChaincodeEvent{TxID: transactionResults[i].Txid, EventName: transactionResults[i].Error}
+        continue
+      }
 			if transactionResults[i].ChaincodeEvent != nil {
 				ccEvents[i] = transactionResults[i].ChaincodeEvent
 			} else {
@@ -314,7 +318,7 @@ func (ledger *Ledger) SetState(chaincodeID string, key string, value []byte) err
   res := ledger.state.Set(chaincodeID, key, value)
   ledger.totalWriteTime += uint64(time.Since(startTime))
   if val, ok := ledger.statUtil.Stats["ledgerput"].End(key); ok {
-    ledgerLogger.Infof("PutState latency: %v", val)
+    ledgerLogger.Debugf("PutState latency: %v", val)
   }
 	return res
 }
