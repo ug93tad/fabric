@@ -46,6 +46,7 @@ type ConsensusHandler struct {
 	consenterChan chan *util.Message
 	coordinator   peer.MessageHandlerCoordinator
   requestQueueSize int
+  consensusQueueSize int
 }
 
 // NewConsensusHandler constructs a new MessageHandler for the plugin.
@@ -63,15 +64,16 @@ func NewConsensusHandler(coord peer.MessageHandlerCoordinator,
 		coordinator:    coord,
 	}
 
-	consensusQueueSize := viper.GetInt("peer.validator.consensus.buffersize")
+	handler.consensusQueueSize = viper.GetInt("peer.validator.consensus.buffersize")
 
-  handler.requestQueueSize = consensusQueueSize*1 / 4
-	if consensusQueueSize <= 0 {
-		logger.Errorf("peer.validator.consensus.buffersize is set to %d, but this must be a positive integer, defaulting to %d", consensusQueueSize, DefaultConsensusQueueSize)
-		consensusQueueSize = DefaultConsensusQueueSize
+  //handler.requestQueueSize = consensusQueueSize*1 / 4
+  handler.requestQueueSize = viper.GetInt("peer.validator.consensus.requestbuffer")
+	if handler.consensusQueueSize <= 0 {
+		logger.Errorf("peer.validator.consensus.buffersize is set to %d, but this must be a positive integer, defaulting to %d", handler.consensusQueueSize, DefaultConsensusQueueSize)
+		handler.consensusQueueSize = DefaultConsensusQueueSize
 	}
 
-	handler.consenterChan = make(chan *util.Message, consensusQueueSize)
+	handler.consenterChan = make(chan *util.Message, handler.consensusQueueSize)
 	getEngineImpl().consensusFan.AddFaninChannel(handler.consenterChan)
 
 	return handler, nil
@@ -82,12 +84,18 @@ func (handler *ConsensusHandler) HandleMessage(msg *pb.Message) error {
   senderId, _ := handler.To()
   logger.Debugf("Handling message of type %v from %v", msg.Type, senderId)
   if msg.Type == pb.Message_CONSENSUS {
-		senderPE, _ := handler.To()
-		handler.consenterChan <- &util.Message{
-			Msg:    msg,
-			Sender: senderPE.ID,
-		}
-		return nil
+    if len(handler.consenterChan) < handler.consensusQueueSize {
+		  senderPE, _ := handler.To()
+		  handler.consenterChan <- &util.Message{
+			  Msg:    msg,
+			  Sender: senderPE.ID,
+		  }
+		  return nil
+    } else {
+      err := fmt.Errorf("Consensus channel full")
+      logger.Errorf("Rejecting consensus message: %v", err)
+      return err
+    }
 	}
 
 	if msg.Type == pb.Message_CONSENSUS_REQUEST {
