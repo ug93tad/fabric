@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+  "os/exec"
 	"strconv"
 	"strings"
 
@@ -857,6 +858,15 @@ func (stub *ChaincodeStub) insertRowInternal(tableName string, row Row, update b
 func (stub *ChaincodeStub) SetEvent(name string, payload []byte) error {
 	stub.chaincodeEvent = &pb.ChaincodeEvent{EventName: name, Payload: payload}
 	return nil
+}
+
+// Not implemented 
+func (stub *ChaincodeStub)  ExecuteExternalProc(name string, args []string) ([]byte, error){
+  out, err := exec.Command(name, args...).Output()
+  if err != nil {
+    return nil, err
+  }
+  return out, nil
 }
 
 // ------------- Logging Control and Chaincode Loggers ---------------

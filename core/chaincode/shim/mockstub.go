@@ -309,6 +309,11 @@ func (stub *MockStub) SetEvent(name string, payload []byte) error {
 	return nil
 }
 
+// Not implemented
+func (stub *MockStub) ExecuteExternalProc(name string, args []string) ([]byte, error) {
+  return nil, nil
+}
+
 // Constructor to initialise the internal State map
 func NewMockStub(name string, cc Chaincode) *MockStub {
 	mockLogger.Debug("MockStub(", name, cc, ")")

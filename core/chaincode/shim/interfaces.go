@@ -158,6 +158,10 @@ type ChaincodeStubInterface interface {
 
 	// SetEvent saves the event to be sent when a transaction is made part of a block
 	SetEvent(name string, payload []byte) error
+
+  // Execute 
+  ExecuteExternalProc(name string, args []string) ([]byte, error)
+
 }
 
 // StateRangeQueryIteratorInterface allows a chaincode to iterate over a range of
