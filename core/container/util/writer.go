@@ -40,6 +40,7 @@ var includeFileTypes = map[string]bool{
 	".json": true,
   ".mod":   true,
   ".s": true,
+  ".py": true,
 }
 
 // These filetypes are excluded while creating the tar package sent to Docker
