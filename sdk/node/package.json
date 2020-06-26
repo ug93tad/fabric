@@ -29,7 +29,7 @@
     "hashtable": "^2.0.2",
     "js-sha3": "^0.5.1",
     "json-stringify-safe": "^5.0.1",
-    "jsrsasign": "^5.0.10",
+    "jsrsasign": "^8.0.20",
     "jssha": "^2.1.0",
     "node-uuid": "^1.4.7",
     "node.extend": "^1.1.5",
